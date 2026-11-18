@@ -1,7 +1,10 @@
 /**
- * Rosi Rạp Phim 2.1 — API adapter gốc PhimAPI.
- * Tải danh mục, tìm kiếm, chi tiết phim và dữ liệu tập từ PhimAPI.
- * Không phụ thuộc máy chủ PHP riêng; chất lượng/kết nối phụ thuộc API bên ngoài.
+ * Motchill TV - Unified Movie API & Data Service
+ * 
+ * Cho phép ứng dụng chạy hoàn toàn ĐỘC LẬP (STANDALONE) KHÔNG CẦN MÁY CHỦ:
+ * - Trực tiếp kết nối kho phim CDN chất lượng cao (HLS M3U8 Siêu Tốc FHD)
+ * - Tương thích 100% khi chạy trong Android TV APK (file:///android_asset/www/...)
+ * - Tự động phát hiện và hỗ trợ cả chế độ Server lẫn Offline/Standalone
  */
 
 (function () {
@@ -30,6 +33,29 @@
     cache.set(key, { data, exp: Date.now() + ttl });
   }
 
+  // Mọi yêu cầu API đều có timeout và kiểm tra HTTP/JSON rõ ràng.
+  async function fetchJson(url, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      if (!response.ok) throw new Error(`API trả về HTTP ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      if (error && error.name === 'AbortError') {
+        throw new Error('Kết nối API quá thời gian chờ. Vui lòng thử lại.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // Format full image url
   function getImageUrl(url, cdnBase = DEFAULT_CDN_IMAGE) {
     if (!url) return 'img/placeholder.svg';
@@ -54,48 +80,102 @@
       badge = badge ? `${badge} - ${raw.lang}` : raw.lang;
     }
 
-    const genre = Array.isArray(raw.category)
-      ? raw.category.map(item => item && (item.name || item)).filter(Boolean).join(', ')
-      : (raw.genre || '');
-
     return {
       slug,
-      id: slug,
       title,
-      name: title,
       thumb: poster,
       poster: poster,
       backdrop: thumb,
-      badge: badge || 'HD',
-      genre,
-      year: raw.year || '',
-      type: /series|phim-bo/i.test(raw.type || raw.movie_type || '') ? 'series' : (/hoat.?hinh|anime/i.test(raw.type || raw.movie_type || '') ? 'anime' : 'movie'),
-      description: raw.content || raw.description || ''
+      badge: badge || 'HD'
     };
   }
 
-  async function fetchJson(url, timeoutMs = 12000) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        signal: controller.signal,
-        cache: 'no-store'
-      });
-      if (!response.ok) throw new Error(`API trả về HTTP ${response.status}`);
-      return await response.json();
-    } catch (error) {
-      if (error.name === 'AbortError') throw new Error('Nguồn phim phản hồi quá lâu. Vui lòng thử lại.');
-      throw error;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
   class MovieApiService {
-    constructor() {}
+    constructor() {
+      this.primaryServer = '';
+      this.backupServer = '';
+      this.bothServersFailed = false;
+      this.activeServer = '';
+
+      try {
+        this.primaryServer = localStorage.getItem('motchill_server_primary') || '';
+        this.backupServer = localStorage.getItem('motchill_server_backup') || '';
+        this.bothServersFailed = localStorage.getItem('motchill_both_failed') === 'true';
+        this.activeServer = this.primaryServer || this.backupServer || '';
+      } catch (e) {}
+    }
+
+    setServerEndpoints(primaryUrl, backupUrl, bothFailed = false) {
+      this.primaryServer = (primaryUrl || '').trim().replace(/\/+$/, '');
+      this.backupServer = (backupUrl || '').trim().replace(/\/+$/, '');
+      this.bothServersFailed = Boolean(bothFailed);
+
+      try {
+        localStorage.setItem('motchill_server_primary', this.primaryServer);
+        localStorage.setItem('motchill_server_backup', this.backupServer);
+        localStorage.setItem('motchill_both_failed', this.bothServersFailed ? 'true' : 'false');
+      } catch (e) {}
+
+      if (!this.bothServersFailed) {
+        this.activeServer = this.primaryServer || this.backupServer || '';
+      } else {
+        this.activeServer = '';
+      }
+      console.log('📡 [MovieApi] Đã nạp cấu hình máy chủ:', {
+        primary: this.primaryServer,
+        backup: this.backupServer,
+        bothFailed: this.bothServersFailed,
+        active: this.activeServer
+      });
+    }
+
+    setCustomApiBase(url) {
+      if (url && typeof url === 'string') {
+        this.setServerEndpoints(url, this.backupServer, false);
+      }
+    }
+
+    async fetchServer(endpoint) {
+      if (this.bothServersFailed) return null;
+
+      const candidates = [];
+      if (this.activeServer) candidates.push(this.activeServer);
+      if (this.primaryServer && !candidates.includes(this.primaryServer)) candidates.push(this.primaryServer);
+      if (this.backupServer && !candidates.includes(this.backupServer)) candidates.push(this.backupServer);
+
+      if (candidates.length === 0 && window.location.protocol !== 'file:') {
+        candidates.push('');
+      }
+
+      if (candidates.length === 0) return null;
+
+      for (const base of candidates) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const fullUrl = base ? `${base}${endpoint}` : endpoint;
+          let res;
+          try {
+            res = await fetch(fullUrl, { signal: controller.signal, headers: { Accept: 'application/json' } });
+          } finally {
+            clearTimeout(timeoutId);
+          }
+          if (res.ok) {
+            const data = await res.json();
+            if (base && this.activeServer !== base) {
+              this.activeServer = base;
+              console.log(`✅ [MovieApi] Đã kết nối thành công máy chủ: ${base}`);
+            }
+            return data;
+          }
+        } catch (e) {
+          console.warn(`[MovieApi] Máy chủ ${base || 'gốc'} không phản hồi (${endpoint}):`, e.message);
+        }
+      }
+
+      // Cả máy chủ chính và phụ đều không phản hồi
+      return null;
+    }
 
     /**
      * Lấy dữ liệu Trang Chủ (Featured, Phim Bộ, Phim Lẻ, Phim Rạp, Hoạt Hình)
@@ -105,6 +185,13 @@
       if (!forceRefresh) {
         const cached = getCache(cacheKey);
         if (cached) return cached;
+      }
+
+      // Thử nạp từ máy chủ (chính hoặc phụ)
+      const serverData = await this.fetchServer(`/api/home${forceRefresh ? '?refresh=true' : ''}`);
+      if (serverData && serverData.success && serverData.data && serverData.data.sections?.length > 0) {
+        setCache(cacheKey, serverData.data);
+        return serverData.data;
       }
 
       // Chế độ Standalone Direct CDN (Không cần Server)
@@ -201,9 +288,8 @@
         }
 
         if (!sections.length) {
-          throw new Error('API chưa trả về danh sách phim hợp lệ.');
+          throw new Error('PhimAPI chưa trả về danh sách phim. Hãy kiểm tra mạng hoặc thử tải lại sau.');
         }
-
         const result = {
           hero,
           sections,
@@ -228,6 +314,13 @@
       const cached = getCache(cacheKey);
       if (cached) return cached;
 
+      // Thử nạp danh mục từ máy chủ (chính hoặc phụ)
+      const serverData = await this.fetchServer(`/api/category?type=${type}&slug=${slug}&page=${p}`);
+      if (serverData && serverData.success && serverData.data) {
+        setCache(cacheKey, serverData.data);
+        return serverData.data;
+      }
+
       // Standalone Direct API
       let endpoint = '';
       if (type === 'danh-sach') {
@@ -244,7 +337,7 @@
 
       const json = await fetchJson(endpoint);
       if (json.status === false || json.status === 'error') {
-        throw new Error(json.msg || 'Không thể tải danh sách phim.');
+        throw new Error('Không thể tải danh sách phim.');
       }
 
       const dataObj = json.data || json;
@@ -280,6 +373,13 @@
       const cached = getCache(cacheKey);
       if (cached) return cached;
 
+      // Thử tìm kiếm từ máy chủ (chính hoặc phụ)
+      const serverData = await this.fetchServer(`/api/search?q=${encodeURIComponent(q)}`);
+      if (serverData && serverData.success && serverData.items) {
+        setCache(cacheKey, serverData.items);
+        return serverData.items;
+      }
+
       // Standalone Direct API Search
       const url = `${PHIM_API_BASE}/v1/api/tim-kiem?keyword=${encodeURIComponent(q)}&limit=24`;
       const json = await fetchJson(url);
@@ -299,6 +399,13 @@
       const cacheKey = `movie_${slug}`;
       const cached = getCache(cacheKey);
       if (cached) return cached;
+
+      // Thử lấy chi tiết phim từ máy chủ (chính hoặc phụ)
+      const serverData = await this.fetchServer(`/api/movie/${slug}`);
+      if (serverData && serverData.success && serverData.movie) {
+        setCache(cacheKey, serverData.movie);
+        return serverData.movie;
+      }
 
       // Standalone Direct API Movie Detail
       const url = `${PHIM_API_BASE}/phim/${slug}`;
@@ -379,6 +486,13 @@
       const cacheKey = `stream_${slug}_ep${targetEp}`;
       const cached = getCache(cacheKey);
       if (cached) return cached;
+
+      // Thử lấy nguồn phát video từ máy chủ (chính hoặc phụ)
+      const serverData = await this.fetchServer(`/api/stream/${slug}/${targetEp}`);
+      if (serverData && serverData.success && serverData.sources && serverData.sources.length > 0) {
+        setCache(cacheKey, serverData);
+        return serverData;
+      }
 
       // Standalone Direct API Stream Extraction
       const url = `${PHIM_API_BASE}/phim/${slug}`;
@@ -508,7 +622,6 @@
       setCache(cacheKey, result);
       return result;
     }
-
   }
 
   // Khởi tạo Singleton toàn cục
