@@ -1,4 +1,4 @@
-# Rosi Rạp Phim 2.1
+# Rosi Rạp Phim 2.2
 
 Ứng dụng Rosi Rạp Phim giao diện điện ảnh tối, tối ưu điện thoại và màn hình lớn. Dự án dùng Capacitor 7 để đóng gói Android.
 
@@ -7,7 +7,7 @@
 - Sửa lỗi cú pháp `constructor()` bị khai báo lặp trong `www/api-service.js` — lỗi khiến API adapter không thể nạp.
 - Thêm kiểm tra HTTP, thời gian chờ 12 giây và thông báo lỗi rõ hơn khi API không phản hồi.
 - Chuẩn hóa loại phim lẻ, phim bộ và hoạt hình để bộ lọc hoạt động ổn định hơn.
-- Giữ duy nhất API gốc PhimAPI (`https://phimapi.com`) và CDN ảnh gốc (`https://phimimg.com`); không thêm nguồn phim mới.
+- Giữ duy nhất API gốc PhimAPI (tích hợp adapter API từ tệp người dùng cung cấp) (`https://phimapi.com`) và CDN ảnh gốc (`https://phimimg.com`); không thêm nguồn phim mới.
 - Giữ tìm kiếm, danh mục, chi tiết phim, lịch sử, yêu thích, tiến độ xem, HLS và đồng bộ Supabase tùy chọn.
 - Build script tự kiểm tra cú pháp JavaScript trước khi tạo bundle.
 
@@ -15,7 +15,7 @@
 - `www/index.html`: khung giao diện.
 - `www/styles.css`: giao diện responsive.
 - `www/app.js`: logic giao diện, thư viện, lịch sử và đồng bộ.
-- `www/api-service.js`: adapter API PhimAPI gốc.
+- `www/api-service.js`: adapter API PhimAPI (tích hợp adapter API từ tệp người dùng cung cấp) gốc.
 - `www/cloud-config.js`: cấu hình Supabase tùy chọn.
 - `capacitor.config.json`: tên và mã ứng dụng Android.
 - `.github/workflows/build-apk.yml`: workflow tự động build APK.
@@ -44,4 +44,4 @@ Xem `SUPABASE-SETUP.md` để tạo bảng, bật Row Level Security và cấu h
 - `node --check www/api-service.js`: đạt.
 - `node --check www/app.js`: đạt.
 - Kiểm tra mô phỏng API: trang chủ, tìm kiếm, chi tiết và danh sách nguồn trả dữ liệu mẫu thành công.
-- Chưa xác nhận kết nối thật tới PhimAPI và chưa build APK thực tế trong môi trường này. Cần chạy GitHub Actions và thử trên thiết bị Android trước khi phát hành.
+- Chưa xác nhận kết nối thật tới PhimAPI (tích hợp adapter API từ tệp người dùng cung cấp) và chưa build APK thực tế trong môi trường này. Cần chạy GitHub Actions và thử trên thiết bị Android trước khi phát hành.
