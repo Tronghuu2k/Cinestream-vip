@@ -57,13 +57,23 @@
       badge = badge ? `${badge} - ${raw.lang}` : raw.lang;
     }
 
+    const genre = Array.isArray(raw.category)
+      ? raw.category.map(item => item && (item.name || item)).filter(Boolean).join(', ')
+      : (raw.genre || '');
+
     return {
       slug,
+      id: slug,
       title,
+      name: title,
       thumb: poster,
       poster: poster,
       backdrop: thumb,
-      badge: badge || 'HD'
+      badge: badge || 'HD',
+      genre,
+      year: raw.year || '',
+      type: raw.type || raw.movie_type || '',
+      description: raw.content || raw.description || ''
     };
   }
 
@@ -73,6 +83,7 @@
       this.backupServer = '';
       this.bothServersFailed = false;
       this.activeServer = '';
+      this.phpApiBase = String((() => { try { return localStorage.getItem('rosi_php_api_base') || window.ROSI_PHP_API_BASE || ''; } catch (_) { return window.ROSI_PHP_API_BASE || ''; } })()).trim().replace(/\/+$/, '');
 
       try {
         this.primaryServer = localStorage.getItem('motchill_server_primary') || '';
@@ -150,6 +161,43 @@
       return null;
     }
 
+    async fetchPhp(path) {
+      if (!this.phpApiBase) return null;
+      try {
+        const response = await fetch(`${this.phpApiBase}/${path}`, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error(`PHP API HTTP ${response.status}`);
+        const data = await response.json();
+        return data && data.status !== false ? data : null;
+      } catch (error) {
+        console.warn('[MovieApi] PHP API không khả dụng:', error.message);
+        return null;
+      }
+    }
+
+    setPhpApiBase(url) {
+      this.phpApiBase = String(url || '').trim().replace(/\/+$/, '');
+      try { localStorage.setItem('rosi_php_api_base', this.phpApiBase); } catch (_) {}
+      return this.phpApiBase;
+    }
+
+    normalizePhpDetail(json, fallbackSlug) {
+      if (!json || !json.movie) return null;
+      const m = json.movie;
+      const episodes = [];
+      const seen = new Set();
+      for (const server of (json.episodes || [])) {
+        for (const ep of (server.server_data || [])) {
+          const number = String(ep.name || ep.slug || episodes.length + 1).replace(/^tập\s*/i, '').trim();
+          const key = number.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          episodes.push({ number, name: /^\d+$/.test(number) ? `Tập ${number}` : number, slug: ep.slug || `tap-${number}`, url: ep.link_m3u8 || ep.link_embed || '', sources: [{ label: server.server_name || 'PHP API', type: ep.link_m3u8 ? 'm3u8' : 'embed', url: ep.link_m3u8 || ep.link_embed || '', isHls: !!ep.link_m3u8 }] });
+        }
+      }
+      const image = value => value && /^https?:\/\//i.test(value) ? value : value ? `https://phimimg.com/${String(value).replace(/^\/+/, '')}` : '';
+      return { slug: m.slug || fallbackSlug, title: m.name || fallbackSlug, originalTitle: m.origin_name || '', poster: image(m.poster_url || m.thumb_url), backdrop: image(m.thumb_url || m.poster_url), description: String(m.content || '').replace(/<[^>]*>/g, ' ').trim(), year: String(m.year || ''), duration: m.time || '', country: (m.country || []).map(x => x.name).filter(Boolean).join(', '), genre: (m.category || []).map(x => x.name).filter(Boolean).join(', '), status: m.episode_current || '', episodes };
+    }
+
     /**
      * Lấy dữ liệu Trang Chủ (Featured, Phim Bộ, Phim Lẻ, Phim Rạp, Hoạt Hình)
      */
@@ -163,8 +211,24 @@
       // Thử nạp từ máy chủ (chính hoặc phụ)
       const serverData = await this.fetchServer(`/api/home${forceRefresh ? '?refresh=true' : ''}`);
       if (serverData && serverData.success && serverData.data && serverData.data.sections?.length > 0) {
-        setCache(cacheKey, serverData.data);
-        return serverData.data;
+        const data = serverData.data;
+        const nguoncPage = await this.fetchPhp('nguonc.php?page=1');
+        if (nguoncPage && Array.isArray(nguoncPage.items)) {
+          const items = nguoncPage.items.map(item => normalizeCardItem(item)).filter(Boolean);
+          if (items.length) data.sections.push({ id: 'nguonc-moi', title: 'NguồnC – Phim mới cập nhật', icon: '🌐', items: items.slice(0, 24) });
+        }
+        setCache(cacheKey, data);
+        return data;
+      }
+
+      // Bổ sung danh sách NguồnC từ PHP endpoint (nếu đã cấu hình hosting).
+      const nguoncPage = await this.fetchPhp('nguonc.php?page=1');
+      if (nguoncPage && Array.isArray(nguoncPage.items)) {
+        const nguoncItems = nguoncPage.items.map(item => normalizeCardItem(item)).filter(Boolean);
+        if (nguoncItems.length) {
+          // Lưu cache phụ; phần ghép vào sections thực hiện sau khi có sections bên dưới.
+          this.phpHomeItems = nguoncItems;
+        }
       }
 
       // Chế độ Standalone Direct CDN (Không cần Server)
@@ -379,6 +443,13 @@
         return serverData.movie;
       }
 
+      // Bổ sung chi tiết và tập từ get.php (OPhim + PhimAPI + NguồnC).
+      const phpDetail = this.normalizePhpDetail(await this.fetchPhp(`get.php?slug=${encodeURIComponent(slug)}`), slug);
+      if (phpDetail && phpDetail.episodes.length) {
+        setCache(cacheKey, phpDetail);
+        return phpDetail;
+      }
+
       // Standalone Direct API Movie Detail
       const url = `${PHIM_API_BASE}/phim/${slug}`;
       const res = await fetch(url);
@@ -465,6 +536,20 @@
       if (serverData && serverData.success && serverData.sources && serverData.sources.length > 0) {
         setCache(cacheKey, serverData);
         return serverData;
+      }
+
+      // Thử nguồn tập từ API PHP tổng hợp. Hỗ trợ cả HLS và Embed.
+      const phpRaw = await this.fetchPhp(`get.php?slug=${encodeURIComponent(slug)}`);
+      if (phpRaw?.episodes) {
+        const clean = value => String(value || '').toLowerCase().replace(/^tập\s*/i, '').replace(/^tap[-_]?/i, '').trim().replace(/^0+(?=\d)/, '');
+        const matches = [];
+        for (const server of phpRaw.episodes) for (const ep of (server.server_data || [])) {
+          if (clean(ep.name) === clean(targetEp) || clean(ep.slug) === clean(targetEp) || (targetEp === '1' && (server.server_data || []).length === 1)) {
+            if (ep.link_m3u8) matches.push({ label: server.server_name || 'PHP HLS', type: 'm3u8', url: ep.link_m3u8, isHls: true });
+            if (ep.link_embed) matches.push({ label: server.server_name || 'PHP Embed', type: 'embed', url: ep.link_embed, isHls: false });
+          }
+        }
+        if (matches.length) return { success: true, slug, currentEpisode: targetEp, sources: matches, episodes: [] };
       }
 
       // Standalone Direct API Stream Extraction
@@ -597,11 +682,6 @@
       return result;
     }
 
-    setCustomApiBase(url) {
-      if (url && typeof url === 'string') {
-        localStorage.setItem('motchill_custom_api', url);
-      }
-    }
   }
 
   // Khởi tạo Singleton toàn cục

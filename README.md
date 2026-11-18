@@ -1,97 +1,60 @@
-# CineStream VIP
+# Rosi Rạp Phim
 
-Starter project giao diện xem phim, không yêu cầu đăng nhập, tối ưu responsive cho điện thoại và Android TV.
+Ứng dụng xem phim giao diện mobile-first, không yêu cầu đăng nhập. Được đóng gói Android bằng Capacitor.
 
-## Có sẵn
-- Trang chủ, tìm kiếm, danh mục, chi tiết phim.
-- Yêu thích, lịch sử xem, lưu tiến độ xem trên thiết bị.
-- Tự động phát tập kế tiếp nếu nguồn có danh sách tập.
-- Thêm nguồn JSON API hoặc JSON riêng.
-- Trình phát HTML5 video, toàn màn hình.
-- Capacitor để đóng gói Android.
+## Tính năng trong source
+- Giao diện Rosi Rạp Phim, lời chào khi mở ứng dụng và nút tải lại.
+- Trang chủ, tìm kiếm, lọc phim lẻ/phim bộ/hoạt hình và lọc theo thể loại có trong dữ liệu API.
+- Chi tiết phim, danh sách tập, chọn nguồn phát khi API trả về nhiều nguồn.
+- Trình phát video HTML5/HLS, toàn màn hình, chuyển khung hình vừa màn hình/lấp đầy màn hình.
+- Chọn chất lượng HLS theo các mức thực tế trong manifest. 4K/2160p chỉ hiển thị khi nguồn thực sự cung cấp mức đó; không thể nâng video HD thành 4K bằng phần mềm giao diện.
+- Lịch sử xem, yêu thích, lưu tiến độ trên thiết bị và tự động phát tập kế tiếp.
+- Tài khoản email/password Supabase tùy chọn; đồng bộ đám mây yêu thích, lịch sử, tiến độ và cache phim khi đã cấu hình project Supabase.
+- Android Back: đóng trình phát/hộp thoại/trang con trước; ở trang chủ nhấn Back hai lần trong 2,2 giây để thoát. Có thêm lối tắt vuốt hai ngón xuống hai lần trên thiết bị hỗ trợ.
+- Nút thêm API riêng (URL máy chủ cần tương thích cấu trúc endpoint của adapter).
 
-## Chạy thử trên máy tính
-Cài Node.js LTS, trong thư mục dự án chạy:
-```bash
-npm install
-npm run build
-```
-Có thể mở `www/index.html` bằng trình duyệt hoặc chạy local server.
+## Cấu trúc
+- `www/`: giao diện, ứng dụng và API adapter.
+- `capacitor.config.json`: tên và mã ứng dụng Android.
+- `.github/workflows/build-apk.yml`: workflow tự động build APK.
 
-## Thêm nguồn phim
-Nhấn **+ Thêm nguồn** trong ứng dụng và nhập URL JSON có thể truy cập bằng HTTPS, CORS phù hợp. Dữ liệu chấp nhận mảng JSON hoặc object có `results`, `movies`, hay `items`.
+## Build APK bằng GitHub Actions
+1. Tải toàn bộ nội dung thư mục dự án lên thư mục gốc của repository GitHub, giữ nguyên `.github/workflows/build-apk.yml` và thư mục `www/`.
+2. Mở tab **Actions**.
+3. Chọn **Build Rosi Rap Phim APK** rồi nhấn **Run workflow**.
+4. Khi hoàn tất, mở lần chạy thành công và tải artifact `Rosi-Rap-Phim-debug-apk`.
+5. Giải nén artifact để lấy `app-debug.apk`.
 
-Ví dụ cấu trúc:
-```json
-[
-  {
-    "id": "film-001",
-    "title": "Tên phim",
-    "type": "movie",
-    "genre": "Hành động",
-    "year": 2025,
-    "desc": "Mô tả phim",
-    "poster": "https://example.com/poster.jpg",
-    "backdrop": "https://example.com/backdrop.jpg",
-    "videoUrl": "https://example.com/video.mp4"
-  },
-  {
-    "id": "series-001",
-    "title": "Tên phim bộ",
-    "type": "series",
-    "episodes": [
-      {"title":"Tập 1","url":"https://example.com/episode-1.mp4"},
-      {"title":"Tập 2","url":"https://example.com/episode-2.mp4"}
-    ]
-  }
-]
-```
-Bạn cần tự cấu hình adapter nếu API thực tế dùng tên trường khác hoặc cần API key. Không nhúng API key bí mật vào ứng dụng client.
+Workflow dùng Node.js 22, Java 21, bundle mã nguồn và cài Capacitor Android/plugin App rồi tạo APK debug. Các GitHub Actions được cập nhật theo major hiện hành tại thời điểm tạo source. APK debug phù hợp để thử nghiệm; muốn phát hành rộng rãi cần cấu hình ký bản release.
 
-## Build APK Android
-Cần máy tính Windows/macOS/Linux với Node.js LTS, Android Studio và Android SDK:
+## Đồng bộ đám mây (tùy chọn)
+Xem `SUPABASE-SETUP.md` để tạo bảng, bật Row Level Security và cấu hình `www/cloud-config.js`. Khi chưa cấu hình Supabase, ứng dụng vẫn dùng dữ liệu cục bộ. Không đưa service_role key vào ứng dụng.
+
+## API và chất lượng video
+Adapter hiện gọi API được khai báo trong `www/api-service.js`, mặc định là `https://phimapi.com`, ảnh mặc định từ `https://phimimg.com`. Đây là nguồn bên ngoài; không cam kết uptime, tính tương thích, quyền phân phối hay quyền truy cập nội dung. Chỉ dùng nội dung và luồng phát bạn có quyền sử dụng.
+
+Chọn chất lượng thủ công cần nguồn HLS có master playlist liệt kê các mức phân giải. Nếu nguồn là MP4 đơn, HLS native hoặc embed không cung cấp thông tin mức chất lượng, ứng dụng chỉ có thể phát ở chất lượng do nguồn quyết định. DRM có thể không phát được trong player này.
+
+## Giới hạn hiện tại
+- Đồng bộ đám mây cần người dùng cấu hình dự án Supabase và đăng nhập; source không chứa sẵn backend hoặc khóa dự án.
+- Mục Tải xuống hiện là trang thông tin, chưa triển khai tải video ngoại tuyến.
+- Vuốt hai ngón là lối tắt phụ; thao tác Android Back hai lần là cách thoát chính.
+- Cần kiểm thử với API và thiết bị thực tế trước khi phát hành. Build thành công không bảo đảm mọi link phim đều phát được.
+
+## Chạy local
 ```bash
 npm install
 npx cap add android
 npx cap sync android
-npx cap open android
 ```
-Trong Android Studio: đợi Gradle sync xong, chọn **Build > Build Bundle(s) / APK(s) > Build APK(s)**. APK debug thường nằm tại `android/app/build/outputs/apk/debug/app-debug.apk`.
-
-### Android TV
-Trong Android Studio, cấu hình activity manifest để hỗ trợ Leanback/launcher TV, kiểm tra điều hướng bằng D-pad và build lại. CSS đã có chế độ TV focus cơ bản, nhưng để phát hành Android TV cần bổ sung icon/banner TV và kiểm thử trên thiết bị thật.
-
-## Đồng bộ nhiều thiết bị
-Hiện lịch sử/yêu thích/tiến độ được lưu trong `localStorage` trên thiết bị hiện tại. Đây **không phải** đồng bộ đám mây. Muốn đồng bộ thật giữa điện thoại và TV, cần backend (ví dụ Supabase/Firebase) và một mã ghép nối hoặc hồ sơ người dùng ẩn danh; chưa cấu hình backend trong bản này.
-
-## Lưu ý nguồn và phát video
-Chỉ thêm API, poster, luồng video mà bạn sở hữu hoặc được cấp quyền sử dụng. Một số luồng HLS/DASH, DRM hoặc định dạng đặc biệt không phát được bằng thẻ video HTML5 mặc định; cần tích hợp player tương thích và tuân thủ giấy phép. Mẫu demo không đi kèm phim thương mại hay máy chủ phim.
+Sau đó mở thư mục Android trong Android Studio hoặc dùng GitHub Actions theo hướng dẫn trên.
 
 
-## Build APK tự động bằng GitHub Actions (có thể thao tác trên điện thoại)
-1. Tạo repository GitHub mới và tải toàn bộ nội dung ZIP này lên (giữ nguyên thư mục `.github/workflows`).
-2. Mở tab **Actions** của repository, chọn workflow **Build CineStream VIP APK**.
-3. Nhấn **Run workflow** (hoặc push lên nhánh `main` để tự chạy).
-4. Khi workflow thành công, mở lần chạy đó, kéo xuống **Artifacts**, tải `CineStream-VIP-debug-apk` và giải nén để lấy APK.
-5. APK debug dùng để thử nghiệm; muốn phát hành rộng rãi cần tạo khóa ký release và cấu hình ký APK/AAB an toàn.
+## Bổ sung API PHP (get.php + nguonc.php)
 
-Lưu ý: GitHub Actions tạo thư mục Android và build trên máy chủ Ubuntu; thư mục `android/` không được đóng gói sẵn vì Capacitor sinh nó bằng `npx cap add android`.
-
-
-## API phim đã tích hợp
-Đã đưa `api-service.js` vào `www/` và nạp trước `app.js`. Adapter này gọi các endpoint được khai báo trong file bạn cung cấp:
-- API gốc: `https://phimapi.com`
-- CDN ảnh mặc định: `https://phimimg.com`
-- Trang chủ: danh sách phim mới, phim bộ, phim lẻ, phim chiếu rạp, hoạt hình.
-- Danh mục, tìm kiếm, chi tiết phim, danh sách tập và nguồn phát HLS/embed.
-- Cache trong bộ nhớ khoảng 3 phút; có hỗ trợ endpoint máy chủ chính/phụ theo cấu trúc `/api/...` mà file API mô tả.
-
-**Lưu ý:** Tích hợp mã API không đồng nghĩa đã xác minh tính ổn định, điều khoản sử dụng, quyền phân phối phim hoặc quyền truy cập các luồng video. Chỉ sử dụng nội dung bạn có quyền xem/phân phối. Các endpoint bên ngoài có thể thay đổi, giới hạn truy cập hoặc không cho phép gọi trực tiếp từ WebView (CORS). Chưa thực hiện kiểm thử kết nối mạng thực tế trong môi trường build này.
-
-
-## Bản PHONE ONLY
-Bản này được tinh chỉnh dành riêng cho điện thoại Android:
-- Bố cục nội dung giới hạn chiều rộng dạng mobile, kể cả khi mở trên màn hình lớn.
-- Bỏ mục TV Live và công tắc giao diện Android TV.
-- Giữ thanh điều hướng, tìm kiếm, thư viện, lịch sử, yêu thích và trình phát.
-- APK được build bằng Capacitor cho Android; kiểm tra trên điện thoại thật trước khi phát hành.
+- Mã PHP được đặt trong `server/php/`. Upload cả thư mục này lên hosting có PHP 8+ và cURL, giữ `get.php` và `nguonc.php` cùng một thư mục.
+- Bật HTTPS trên hosting. Không tắt xác minh chứng chỉ TLS.
+- Sau khi upload, sửa `www/php-api-config.js`: đặt `window.ROSI_PHP_API_BASE` thành URL HTTPS của thư mục chứa hai file, ví dụ `https://api.example.com/php`.
+- `get.php?slug=ten-phim` trả chi tiết phim và các server/tập đã tổng hợp; `nguonc.php?page=1` trả danh sách phim NguồnC; `nguonc.php?slug=ten-phim` trả chi tiết NguồnC.
+- App dùng PHP như nguồn bổ sung; nếu PHP không cấu hình hoặc không phản hồi, app vẫn thử API tích hợp hiện tại.
+- Chỉ kết nối và phát nội dung mà bạn có quyền truy cập/phát. API bên thứ ba có thể thay đổi hoặc ngừng hoạt động.

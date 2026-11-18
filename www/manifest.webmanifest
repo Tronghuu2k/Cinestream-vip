@@ -1,9 +1,9 @@
 {
-  "name": "CineStream VIP",
-  "short_name": "CineStream",
+  "name": "Rosi Rạp Phim MAX",
+  "short_name": "Rosi",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#080910",
-  "theme_color": "#090a12",
-  "orientation": "any"
+  "background_color": "#090812",
+  "theme_color": "#090812",
+  "lang": "vi"
 }

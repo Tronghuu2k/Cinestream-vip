@@ -1,6 +1,6 @@
 {
-  "appId": "vn.cinestream.vip",
-  "appName": "CineStream VIP",
+  "appId": "vn.rosi.rapphim",
+  "appName": "Rosi Rạp Phim",
   "webDir": "www",
   "server": {
     "androidScheme": "https"
