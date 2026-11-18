@@ -1,60 +1,47 @@
-# Rosi Rạp Phim
+# Rosi Rạp Phim 2.1
 
-Ứng dụng xem phim giao diện mobile-first, không yêu cầu đăng nhập. Được đóng gói Android bằng Capacitor.
+Ứng dụng Rosi Rạp Phim giao diện điện ảnh tối, tối ưu điện thoại và màn hình lớn. Dự án dùng Capacitor 7 để đóng gói Android.
 
-## Tính năng trong source
-- Giao diện Rosi Rạp Phim, lời chào khi mở ứng dụng và nút tải lại.
-- Trang chủ, tìm kiếm, lọc phim lẻ/phim bộ/hoạt hình và lọc theo thể loại có trong dữ liệu API.
-- Chi tiết phim, danh sách tập, chọn nguồn phát khi API trả về nhiều nguồn.
-- Trình phát video HTML5/HLS, toàn màn hình, chuyển khung hình vừa màn hình/lấp đầy màn hình.
-- Chọn chất lượng HLS theo các mức thực tế trong manifest. 4K/2160p chỉ hiển thị khi nguồn thực sự cung cấp mức đó; không thể nâng video HD thành 4K bằng phần mềm giao diện.
-- Lịch sử xem, yêu thích, lưu tiến độ trên thiết bị và tự động phát tập kế tiếp.
-- Tài khoản email/password Supabase tùy chọn; đồng bộ đám mây yêu thích, lịch sử, tiến độ và cache phim khi đã cấu hình project Supabase.
-- Android Back: đóng trình phát/hộp thoại/trang con trước; ở trang chủ nhấn Back hai lần trong 2,2 giây để thoát. Có thêm lối tắt vuốt hai ngón xuống hai lần trên thiết bị hỗ trợ.
-- Nút thêm API riêng (URL máy chủ cần tương thích cấu trúc endpoint của adapter).
+## Điểm nâng cấp 2.1
+- Làm mới giao diện theo phong cách rạp phim hiện đại: nền tối, điểm nhấn đỏ, poster bo góc, hàng phim cuộn ngang và bố cục thích ứng màn hình lớn.
+- Sửa lỗi cú pháp `constructor()` bị khai báo lặp trong `www/api-service.js` — lỗi khiến API adapter không thể nạp.
+- Thêm kiểm tra HTTP, thời gian chờ 12 giây và thông báo lỗi rõ hơn khi API không phản hồi.
+- Chuẩn hóa loại phim lẻ, phim bộ và hoạt hình để bộ lọc hoạt động ổn định hơn.
+- Giữ duy nhất API gốc PhimAPI (`https://phimapi.com`) và CDN ảnh gốc (`https://phimimg.com`); không thêm nguồn phim mới.
+- Giữ tìm kiếm, danh mục, chi tiết phim, lịch sử, yêu thích, tiến độ xem, HLS và đồng bộ Supabase tùy chọn.
+- Build script tự kiểm tra cú pháp JavaScript trước khi tạo bundle.
 
 ## Cấu trúc
-- `www/`: giao diện, ứng dụng và API adapter.
+- `www/index.html`: khung giao diện.
+- `www/styles.css`: giao diện responsive.
+- `www/app.js`: logic giao diện, thư viện, lịch sử và đồng bộ.
+- `www/api-service.js`: adapter API PhimAPI gốc.
+- `www/cloud-config.js`: cấu hình Supabase tùy chọn.
 - `capacitor.config.json`: tên và mã ứng dụng Android.
 - `.github/workflows/build-apk.yml`: workflow tự động build APK.
 
 ## Build APK bằng GitHub Actions
-1. Tải toàn bộ nội dung thư mục dự án lên thư mục gốc của repository GitHub, giữ nguyên `.github/workflows/build-apk.yml` và thư mục `www/`.
-2. Mở tab **Actions**.
-3. Chọn **Build Rosi Rap Phim APK** rồi nhấn **Run workflow**.
-4. Khi hoàn tất, mở lần chạy thành công và tải artifact `Rosi-Rap-Phim-debug-apk`.
+1. Tải toàn bộ nội dung bên trong thư mục `Rosi-Rap-Phim` lên thư mục gốc repository GitHub.
+2. Kiểm tra repository có `package.json`, `capacitor.config.json`, `www/` và `.github/workflows/build-apk.yml`.
+3. Mở **Actions** → **Build Rosi Rap Phim APK** → **Run workflow**.
+4. Chờ workflow hoàn tất. Mở lần chạy thành công và tải artifact `Rosi-Rap-Phim-debug-apk`.
 5. Giải nén artifact để lấy `app-debug.apk`.
 
-Workflow dùng Node.js 22, Java 21, bundle mã nguồn và cài Capacitor Android/plugin App rồi tạo APK debug. Các GitHub Actions được cập nhật theo major hiện hành tại thời điểm tạo source. APK debug phù hợp để thử nghiệm; muốn phát hành rộng rãi cần cấu hình ký bản release.
+Workflow dùng Node.js 22 và Java 21, cài dependencies, kiểm tra cú pháp và bundle ứng dụng, thêm Capacitor Android rồi build APK debug. APK debug phù hợp để thử nghiệm; muốn phát hành rộng rãi cần cấu hình ký bản release.
 
 ## Đồng bộ đám mây (tùy chọn)
-Xem `SUPABASE-SETUP.md` để tạo bảng, bật Row Level Security và cấu hình `www/cloud-config.js`. Khi chưa cấu hình Supabase, ứng dụng vẫn dùng dữ liệu cục bộ. Không đưa service_role key vào ứng dụng.
+Xem `SUPABASE-SETUP.md` để tạo bảng, bật Row Level Security và cấu hình `www/cloud-config.js`. Khi chưa cấu hình Supabase, ứng dụng vẫn lưu lịch sử/yêu thích trên thiết bị. Không đưa `service_role` key vào ứng dụng.
 
-## API và chất lượng video
-Adapter hiện gọi API được khai báo trong `www/api-service.js`, mặc định là `https://phimapi.com`, ảnh mặc định từ `https://phimimg.com`. Đây là nguồn bên ngoài; không cam kết uptime, tính tương thích, quyền phân phối hay quyền truy cập nội dung. Chỉ dùng nội dung và luồng phát bạn có quyền sử dụng.
+## API và giới hạn
+- API danh mục/chi tiết: `https://phimapi.com`.
+- CDN ảnh: `https://phimimg.com`.
+- API là dịch vụ bên ngoài nên uptime, CORS, cấu trúc phản hồi và quyền sử dụng nội dung phụ thuộc nhà cung cấp; mã nguồn không thể bảo đảm dịch vụ luôn hoạt động.
+- Chất lượng HLS chỉ chọn được khi manifest của nguồn cung cấp nhiều mức phân giải. MP4 đơn, HLS native hoặc embed có thể không cho chọn chất lượng riêng.
+- DRM có thể không phát được trong player này.
+- Không có tải video ngoại tuyến. Đồng bộ cloud cần cấu hình Supabase và tài khoản riêng.
 
-Chọn chất lượng thủ công cần nguồn HLS có master playlist liệt kê các mức phân giải. Nếu nguồn là MP4 đơn, HLS native hoặc embed không cung cấp thông tin mức chất lượng, ứng dụng chỉ có thể phát ở chất lượng do nguồn quyết định. DRM có thể không phát được trong player này.
-
-## Giới hạn hiện tại
-- Đồng bộ đám mây cần người dùng cấu hình dự án Supabase và đăng nhập; source không chứa sẵn backend hoặc khóa dự án.
-- Mục Tải xuống hiện là trang thông tin, chưa triển khai tải video ngoại tuyến.
-- Vuốt hai ngón là lối tắt phụ; thao tác Android Back hai lần là cách thoát chính.
-- Cần kiểm thử với API và thiết bị thực tế trước khi phát hành. Build thành công không bảo đảm mọi link phim đều phát được.
-
-## Chạy local
-```bash
-npm install
-npx cap add android
-npx cap sync android
-```
-Sau đó mở thư mục Android trong Android Studio hoặc dùng GitHub Actions theo hướng dẫn trên.
-
-
-## Bổ sung API PHP (get.php + nguonc.php)
-
-- Mã PHP được đặt trong `server/php/`. Upload cả thư mục này lên hosting có PHP 8+ và cURL, giữ `get.php` và `nguonc.php` cùng một thư mục.
-- Bật HTTPS trên hosting. Không tắt xác minh chứng chỉ TLS.
-- Sau khi upload, sửa `www/php-api-config.js`: đặt `window.ROSI_PHP_API_BASE` thành URL HTTPS của thư mục chứa hai file, ví dụ `https://api.example.com/php`.
-- `get.php?slug=ten-phim` trả chi tiết phim và các server/tập đã tổng hợp; `nguonc.php?page=1` trả danh sách phim NguồnC; `nguonc.php?slug=ten-phim` trả chi tiết NguồnC.
-- App dùng PHP như nguồn bổ sung; nếu PHP không cấu hình hoặc không phản hồi, app vẫn thử API tích hợp hiện tại.
-- Chỉ kết nối và phát nội dung mà bạn có quyền truy cập/phát. API bên thứ ba có thể thay đổi hoặc ngừng hoạt động.
+## Kiểm tra trước khi giao
+- `node --check www/api-service.js`: đạt.
+- `node --check www/app.js`: đạt.
+- Kiểm tra mô phỏng API: trang chủ, tìm kiếm, chi tiết và danh sách nguồn trả dữ liệu mẫu thành công.
+- Chưa xác nhận kết nối thật tới PhimAPI và chưa build APK thực tế trong môi trường này. Cần chạy GitHub Actions và thử trên thiết bị Android trước khi phát hành.

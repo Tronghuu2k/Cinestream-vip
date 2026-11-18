@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#090812">
+<meta name="theme-color" content="#08090d">
+<meta name="color-scheme" content="dark">
 <meta name="description" content="Rosi Rạp Phim - thế giới điện ảnh trong tầm tay">
-<title>Rosi Rạp Phim</title>
+<title>Rosi Rạp Phim 2.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -34,12 +35,11 @@
   <section class="section" id="continueSection"><div class="section-head"><h2>▶ Xem tiếp</h2><button class="text-btn" data-page="history">Lịch sử ›</button></div><div class="horizontal-list" id="continueList"></div></section>
   <section class="section"><div class="section-head"><h2>🔥 Phim nổi bật</h2><span class="section-kicker">ROSI PICKS</span></div><div class="movie-grid" id="movieGrid"><div class="loading-state">Đang tải danh sách phim…</div></div></section>
   <section class="section"><div class="section-head"><h2>✦ Có thể bạn sẽ thích</h2></div><div class="horizontal-list" id="suggestList"></div></section>
-  <section class="section source-section"><div class="section-head"><h2>＋ Nguồn phim riêng</h2><button class="text-btn" id="addSourceBtn">Thêm nguồn</button></div><p class="muted small">Chỉ thêm API hoặc danh sách phim mà bạn có quyền sử dụng.</p></section>
 </main>
 <section id="libraryPage" class="page hidden"><div class="page-title"><span class="eyebrow">YOUR COLLECTION</span><h1>Thư viện của tôi</h1><p>Những bộ phim bạn đã lưu và đang theo dõi.</p></div><div class="tabs"><button class="active" data-tab="favorites">Yêu thích</button><button data-tab="history">Lịch sử xem</button></div><div class="movie-grid" id="libraryGrid"></div></section>
 <section id="historyPage" class="page hidden"><div class="page-title"><span class="eyebrow">KEEP WATCHING</span><h1>Lịch sử xem</h1><p>Tiếp tục những bộ phim bạn đang xem dở.</p></div><div class="movie-grid" id="historyGrid"></div></section>
-<section id="downloadsPage" class="page hidden"><div class="page-title"><span class="eyebrow">OFFLINE LIBRARY</span><h1>Tải xuống</h1><p>Nội dung ngoại tuyến tùy thuộc quyền tải và hỗ trợ của nguồn phim.</p></div><div class="empty">⬇<h3>Chưa có nội dung tải xuống</h3><p>Ứng dụng hiện chưa tích hợp tải video trực tiếp.</p></div></section>
-<nav class="bottom-nav"><button class="nav-item active" data-page="home">⌂<span>Trang chủ</span></button><button class="nav-item" data-page="library">♡<span>Thư viện</span></button><button class="nav-item" data-page="history">◷<span>Lịch sử</span></button><button class="nav-item" data-page="downloads">⇩<span>Tải xuống</span></button></nav>
+<section id="downloadsPage" class="page hidden"><div class="page-title"><span class="eyebrow">DISCOVER ROSI</span><h1>Khám phá</h1><p>Tìm bộ phim tiếp theo trong các danh mục nổi bật của Rosi.</p></div><div class="empty">✦<h3>Khám phá phim mới</h3><p>Chọn Trang chủ để xem danh sách phim được cập nhật từ nguồn gốc.</p></div></section>
+<nav class="bottom-nav"><button class="nav-item active" data-page="home">⌂<span>Trang chủ</span></button><button class="nav-item" data-page="library">♡<span>Thư viện</span></button><button class="nav-item" data-page="history">◷<span>Lịch sử</span></button><button class="nav-item" data-page="downloads">✧<span>Khám phá</span></button></nav>
 <div class="modal hidden" id="detailModal"><div class="modal-card"><button class="close-btn" data-close aria-label="Đóng">×</button><div class="detail-cover" id="detailCover"></div><div class="detail-body"><span class="eyebrow" id="detailMeta"></span><h2 id="detailTitle"></h2><p id="detailDesc"></p><div class="detail-actions"><button class="primary-btn" id="playBtn">▶ Xem ngay</button><button class="secondary-btn" id="favoriteBtn">♡ Yêu thích</button></div><div class="episode-heading">Danh sách tập</div><div id="episodeArea"></div></div></div></div>
 <div class="player hidden" id="player">
   <div class="player-top"><button id="closePlayer">‹ Quay lại</button><span id="playerTitle">Đang phát</span><button id="fullscreenBtn" aria-label="Toàn màn hình">⛶</button></div>
@@ -52,6 +52,5 @@
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js"></script>
 <script src="api-service.js"></script>
 <script src="cloud-config.js"></script>
-  <script src="php-api-config.js"></script>
 <script src="bundle.js"></script>
 </body></html>

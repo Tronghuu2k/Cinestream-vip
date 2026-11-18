@@ -1,10 +1,10 @@
 {
   "name": "rosi-rap-phim",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
-  "description": "Rosi Rạp Phim MAX - ứng dụng xem phim Android",
+  "description": "Rosi Rạp Phim 2.1 - giao diện điện ảnh Android",
   "scripts": {
-    "build": "esbuild www/app.js --bundle --format=iife --target=es2020 --outfile=www/bundle.js",
+    "build": "node --check www/api-service.js && node --check www/app.js && esbuild www/app.js --bundle --format=iife --target=es2020 --outfile=www/bundle.js",
     "android:add": "cap add android",
     "android:sync": "cap sync android",
     "android:open": "cap open android"
