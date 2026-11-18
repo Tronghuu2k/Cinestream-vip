@@ -1,0 +1,13 @@
+Cinestream-vip/
+├── .github/
+│   └── workflows/
+│       └── build-apk.yml
+├── www/
+│   ├── index.html
+│   ├── app.js
+│   ├── api-service.js
+│   ├── styles.css
+│   └── manifest.webmanifest
+├── package.json
+├── capacitor.config.json
+└── README.md
