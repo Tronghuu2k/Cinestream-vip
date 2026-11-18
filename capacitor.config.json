@@ -1,0 +1,8 @@
+{
+  "appId": "vn.cinestream.vip",
+  "appName": "CineStream VIP",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
