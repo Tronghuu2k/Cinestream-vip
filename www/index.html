@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="img/app-icon.png" />
   <link rel="stylesheet" href="css/style.css" />
   <!-- HLS.js for ultra-fast M3U8 playback -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
+  <script src="vendor/hls.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js';"></script>
 </head>
 <body>
   <!-- TOP HEADER WITH NOTCH SAFE AREA -->
@@ -36,12 +36,7 @@
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
           </svg>
         </button>
-        <button class="icon-btn" id="btnSettings" title="Cấu hình API & Cập nhật" aria-label="Cài đặt">
-          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
+
       </div>
     </div>
 
@@ -286,75 +281,6 @@
           <button class="icon-btn" onclick="player.closeDrawer()">✕</button>
         </div>
         <div class="drawer-content" id="drawerContent"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SETTINGS / API & GITHUB UPDATE CONFIG MODAL -->
-  <div class="modal-overlay hidden" id="settingsModal">
-    <div class="modal-card nf-surface-card">
-      <div class="modal-card-header">
-        <h3>Cấu Hình & Cập Nhật Ứng Dụng</h3>
-        <button class="icon-btn" onclick="app.closeModal('settingsModal')">✕</button>
-      </div>
-      <div class="modal-card-body">
-        <!-- VERSION & GITHUB UPDATE SECTION -->
-        <div class="version-card">
-          <div class="version-card-top">
-            <div>
-              <strong>Phiên Bản Hiện Tại: <span class="badge-gold" id="appVersionBadge">v1.0.1</span></strong>
-              <p id="updateCheckStatus" style="margin-top:4px;font-size:12px;color:#a1a1aa;">Tự động kiểm tra từ GitHub version.json</p>
-            </div>
-            <button class="btn-primary" style="padding:8px 12px;font-size:12.5px;" onclick="githubUpdater.checkForUpdates(true)">Kiểm Tra Ngay</button>
-          </div>
-          <label class="input-label">Link file GitHub version.json:</label>
-          <input type="url" class="text-input" id="inputVersionJsonUrl" placeholder="https://raw.githubusercontent.com/tronghuu2k/rosi-cinema-apk/main/version.json" />
-        </div>
-
-        <hr class="divider-line" />
-
-        <div class="api-status-card">
-          <span class="status-dot"></span>
-          <div>
-            <strong>Chế Độ Standalone Direct CDN (Đang Hoạt Động)</strong>
-            <p>Kết nối trực tiếp kho phim HLS M3U8 tốc độ cao — Không cần máy chủ trung gian.</p>
-          </div>
-        </div>
-        <label class="input-label">Máy Chủ Chính (Tùy chọn - để trống để chạy độc lập):</label>
-        <input type="url" class="text-input" id="inputPrimaryServer" placeholder="https://your-server.com" />
-
-        <label class="input-label">Máy Chủ Dự Phòng (Tùy chọn):</label>
-        <input type="url" class="text-input" id="inputBackupServer" placeholder="https://backup-server.com" />
-
-        <div class="modal-footer-btns">
-          <button class="btn-secondary nf-btn-secondary" onclick="app.resetApiStandalone()">Mặc Định</button>
-          <button class="btn-primary" onclick="app.saveApiSettings()">Lưu Cấu Hình</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- NEW VERSION UPDATE MODAL -->
-  <div class="modal-overlay hidden" id="updateModal">
-    <div class="modal-card nf-surface-card update-modal-card">
-      <div class="modal-card-header">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="badge-red nf-accent-red">CẬP NHẬT MỚI</span>
-          <h3 id="updateModalTitle">Rosi Cinema VIP</h3>
-        </div>
-        <button class="icon-btn" id="btnCloseUpdateModal">✕</button>
-      </div>
-      <div class="modal-card-body">
-        <div class="update-ver-box">
-          <span class="update-ver-pill" id="updateVerCompare">v1.0.0 → v1.0.1</span>
-          <span class="update-date-text" id="updateReleaseDate"></span>
-        </div>
-        <p class="filter-label" style="margin-top:12px;">Tính năng & cải tiến mới:</p>
-        <ul class="update-changelog" id="updateChangelogList"></ul>
-        <div class="modal-footer-btns" style="margin-top:18px;">
-          <button class="btn-secondary nf-btn-secondary" id="btnUpdateLater">Để Sau</button>
-          <button class="btn-play nf-btn-play" id="btnDownloadUpdate">⬇ Tải Bản Cập Nhật (APK)</button>
-        </div>
       </div>
     </div>
   </div>

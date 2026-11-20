@@ -29,7 +29,14 @@
   window.showToast = showToast;
 
   function escapeAttr(str) {
-    return String(str || '').split('"').join('&quot;').split("'").join('&#39;');
+    return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function safeMediaUrl(value, fallback = 'img/placeholder.svg') {
+    try {
+      const url = new URL(String(value || ''), window.location.href);
+      return ['https:', 'http:'].includes(url.protocol) || url.protocol === 'file:' ? url.href : fallback;
+    } catch (e) { return fallback; }
   }
 
   function formatEpisodeLabel(ep) {
@@ -64,14 +71,7 @@
       this.setupAndroidBackHandler();
       this.loadHome(false);
 
-      // Tự động kiểm tra bản cập nhật mới từ GitHub version.json sau 1.5s
-      if (window.githubUpdater) {
-        const verBadge = document.getElementById('appVersionBadge');
-        if (verBadge) verBadge.textContent = `v${window.githubUpdater.currentVersion}`;
-        setTimeout(() => {
-          window.githubUpdater.checkForUpdates(false);
-        }, 1500);
-      }
+      // Cập nhật ứng dụng được tắt trong bản người dùng; không hiện popup/cảnh báo version.json.
     }
 
     bindEvents() {
@@ -125,15 +125,7 @@
         this.loadHome(true);
       });
 
-      document.getElementById('btnSettings').addEventListener('click', () => {
-        document.getElementById('inputPrimaryServer').value = window.movieApi.primaryServer || '';
-        document.getElementById('inputBackupServer').value = window.movieApi.backupServer || '';
-        if (window.githubUpdater) {
-          document.getElementById('inputVersionJsonUrl').value = window.githubUpdater.getVersionUrl();
-          document.getElementById('appVersionBadge').textContent = `v${window.githubUpdater.currentVersion}`;
-        }
-        this.openModal('settingsModal');
-      });
+
 
       // Pagination
       document.getElementById('btnPrevPage').addEventListener('click', () => {
@@ -167,15 +159,11 @@
 
     setupAndroidBackHandler() {
       // Đóng hộp thoại khi chạm ra vùng tối bên ngoài
-      ['genreModal', 'detailModal', 'settingsModal', 'searchModal', 'updateModal'].forEach(modalId => {
+      ['genreModal', 'detailModal', 'searchModal'].forEach(modalId => {
         const overlay = document.getElementById(modalId);
         if (!overlay) return;
         overlay.addEventListener('click', (e) => {
           if (e.target !== overlay) return;
-          if (modalId === 'updateModal') {
-            const laterBtn = document.getElementById('btnUpdateLater');
-            if (laterBtn && laterBtn.classList.contains('hidden')) return;
-          }
           this.closeModal(modalId);
         });
       });
@@ -214,16 +202,10 @@
       }
 
       // 2. Nếu đang mở hộp thoại (Modal) -> đóng hộp thoại trên cùng
-      const modalOrder = ['updateModal', 'settingsModal', 'detailModal', 'genreModal', 'searchModal'];
+      const modalOrder = ['detailModal', 'genreModal', 'searchModal'];
       for (const id of modalOrder) {
         const el = document.getElementById(id);
         if (el && !el.classList.contains('hidden')) {
-          if (id === 'updateModal') {
-            const laterBtn = document.getElementById('btnUpdateLater');
-            if (laterBtn && laterBtn.classList.contains('hidden')) {
-              return true; // Chặn thoát nếu là bản cập nhật bắt buộc
-            }
-          }
           this.closeModal(id);
           return true;
         }
@@ -291,7 +273,7 @@
 
     renderHero(hero) {
       if (!hero) return;
-      document.getElementById('heroBg').src = hero.backdrop || hero.poster || 'img/placeholder.svg';
+      document.getElementById('heroBg').src = safeMediaUrl(hero.backdrop || hero.poster);
       document.getElementById('heroTitle').textContent = hero.title || 'Rosi Cinema VIP';
       document.getElementById('heroQuality').textContent = hero.status || 'FHD • VIETSUB';
       document.getElementById('heroYear').textContent = hero.year || '2026';
@@ -312,12 +294,14 @@
       const card = document.createElement('div');
       card.className = 'movie-card';
       const safeAlt = escapeAttr(item.title);
+      const posterUrl = escapeAttr(safeMediaUrl(item.poster || item.thumb));
+      const badge = escapeAttr(subtitleOverride || item.badge || 'HD');
       card.innerHTML = `
         <div class="card-poster-wrap">
-          <img class="card-poster" src="${item.poster || item.thumb || 'img/placeholder.svg'}" alt="${safeAlt}" loading="lazy" onerror="this.src='img/placeholder.svg'" />
-          <span class="card-badge">${subtitleOverride || item.badge || 'HD'}</span>
+          <img class="card-poster" src="${posterUrl}" alt="${safeAlt}" loading="lazy" onerror="this.src='img/placeholder.svg'" />
+          <span class="card-badge">${badge}</span>
         </div>
-        <div class="card-title">${item.title}</div>
+        <div class="card-title">${safeAlt}</div>
       `;
       card.addEventListener('click', () => this.openMovieDetail(item.slug));
       return card;
@@ -335,7 +319,7 @@
         const header = document.createElement('div');
         header.className = 'row-header';
         header.innerHTML = `
-          <h2 class="row-title">${sec.icon || '🎬'} ${sec.title}</h2>
+          <h2 class="row-title">${escapeAttr(sec.icon || '🎬')} ${escapeAttr(sec.title)}</h2>
           <button class="row-more">Xem tất cả →</button>
         `;
         header.querySelector('.row-more').addEventListener('click', () => {
@@ -389,7 +373,7 @@
         document.getElementById('btnPrevPage').disabled = res.page <= 1;
         document.getElementById('btnNextPage').disabled = !res.hasNext;
       } catch (err) {
-        movieGrid.innerHTML = `<p style="color:#ef4444;">${err.message}</p>`;
+        movieGrid.textContent = `Lỗi tải danh sách: ${err.message}`;
       }
     }
 
@@ -404,7 +388,7 @@
       try {
         const items = await window.movieApi.search(query);
         if (!items || items.length === 0) {
-          resultsBox.innerHTML = `<p class="search-hint">Không tìm thấy phim nào khớp với "${query}".</p>`;
+          resultsBox.textContent = `Không tìm thấy phim nào khớp với "${query}".`;
           return;
         }
 
@@ -418,7 +402,7 @@
         resultsBox.innerHTML = '';
         resultsBox.appendChild(grid);
       } catch (err) {
-        resultsBox.innerHTML = `<p class="search-hint" style="color:#ef4444;">Lỗi tìm kiếm: ${err.message}</p>`;
+        resultsBox.textContent = `Lỗi tìm kiếm: ${err.message}`;
       }
     }
 
@@ -444,14 +428,14 @@
         const movie = await window.movieApi.getMovieDetail(slug);
         this.currentMovie = movie;
 
-        document.getElementById('detailBackdrop').src = movie.backdrop || movie.poster || 'img/placeholder.svg';
-        document.getElementById('detailPoster').src = movie.poster || 'img/placeholder.svg';
+        document.getElementById('detailBackdrop').src = safeMediaUrl(movie.backdrop || movie.poster);
+        document.getElementById('detailPoster').src = safeMediaUrl(movie.poster);
         document.getElementById('detailTitle').textContent = movie.title;
         document.getElementById('detailOrigin').textContent = movie.originalTitle ? `${movie.originalTitle} (${movie.year})` : movie.year;
         document.getElementById('detailDesc').textContent = movie.description;
 
         const tags = [movie.status, movie.country, movie.duration, movie.genre].filter(Boolean);
-        document.getElementById('detailTags').innerHTML = tags.map(t => `<span class="badge-dark">${t}</span>`).join('');
+        document.getElementById('detailTags').innerHTML = tags.map(t => `<span class="badge-dark">${escapeAttr(t)}</span>`).join('');
 
         // Favorite state
         this.updateFavButton(movie.slug);
@@ -584,36 +568,7 @@
       showToast('Đã xóa lịch sử xem');
     }
 
-    // SETTINGS
-    saveApiSettings() {
-      const p = document.getElementById('inputPrimaryServer').value.trim();
-      const b = document.getElementById('inputBackupServer').value.trim();
-      const verUrl = document.getElementById('inputVersionJsonUrl').value.trim();
 
-      if (window.githubUpdater) {
-        window.githubUpdater.setVersionUrl(verUrl);
-      }
-
-      window.movieApi.setServerEndpoints(p, b, false);
-      window.movieApi.clearCache();
-      this.closeModal('settingsModal');
-      showToast('Đã lưu cấu hình!');
-      this.loadHome(true);
-    }
-
-    resetApiStandalone() {
-      document.getElementById('inputPrimaryServer').value = '';
-      document.getElementById('inputBackupServer').value = '';
-      if (window.githubUpdater) {
-        window.githubUpdater.resetVersionUrl();
-        document.getElementById('inputVersionJsonUrl').value = window.githubUpdater.getVersionUrl();
-      }
-      window.movieApi.setServerEndpoints('', '', true);
-      window.movieApi.clearCache();
-      this.closeModal('settingsModal');
-      showToast('Đã khôi phục cấu hình mặc định!');
-      this.loadHome(true);
-    }
   }
 
   /**
@@ -637,15 +592,25 @@
       this.sources = [];
       this.episodes = [];
       this.activeSourceIndex = 0;
+      this.hlsNetworkRetries = 0;
+      this.hlsMediaRetries = 0;
 
       this.speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
       this.speedIdx = 1;
       this.aspects = [
-        { cls: '', label: 'Khung: Vừa' },
-        { cls: 'fit-cover', label: 'Khung: Tràn viền' },
-        { cls: 'fit-fill', label: 'Khung: Kéo giãn' }
+        { cls: 'fit-contain', label: 'Khung: Fit' },
+        { cls: 'fit-cover', label: 'Khung: Fill' },
+        { cls: 'fit-fill', label: 'Khung: Stretch' },
+        { cls: 'fit-original', label: 'Khung: Gốc' }
       ];
       this.aspectIdx = 0;
+      let savedAspect = 'fit-contain';
+      try { savedAspect = localStorage.getItem('rosi_player_aspect') || savedAspect; } catch (e) {}
+      if (!['fit-contain','fit-cover','fit-fill','fit-original'].includes(savedAspect)) savedAspect = 'fit-contain';
+      this.video.classList.add(savedAspect);
+      this.aspectIdx = this.aspects.findIndex(item => item.cls === savedAspect);
+      if (this.aspectIdx < 0) this.aspectIdx = 0;
+      document.getElementById('btnAspect').textContent = this.aspects[this.aspectIdx].label;
 
       this.bindPlayerEvents();
     }
@@ -686,7 +651,9 @@
         e.stopPropagation();
         this.aspectIdx = (this.aspectIdx + 1) % this.aspects.length;
         const mode = this.aspects[this.aspectIdx];
-        this.video.className = mode.cls;
+        this.video.classList.remove('fit-contain', 'fit-cover', 'fit-fill', 'fit-original');
+        this.video.classList.add(mode.cls);
+        try { localStorage.setItem('rosi_player_aspect', mode.cls); } catch (e) {}
         document.getElementById('btnAspect').textContent = mode.label;
       });
 
@@ -739,6 +706,11 @@
       });
       this.video.addEventListener('pause', () => this.updatePlayIcon(false));
       this.video.addEventListener('ended', () => this.playNextEpisode());
+      this.video.addEventListener('error', () => {
+        if (this.overlay.classList.contains('hidden')) return;
+        this.hideLoader();
+        showToast('Video gặp lỗi định dạng hoặc nguồn phát. Hãy thử server khác.');
+      });
 
       // Tap / Double-tap on player
       let lastTap = 0;
@@ -820,20 +792,24 @@
     }
 
     async toggleFullscreen() {
+      const statusBar = window.Capacitor?.Plugins?.StatusBar;
       try {
         if (!document.fullscreenElement) {
-          await this.container.requestFullscreen();
-          if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(() => {});
-          }
+          if (this.container.requestFullscreen) await this.container.requestFullscreen();
+          if (statusBar?.hide) await statusBar.hide().catch(() => {});
+          if (screen.orientation?.lock) screen.orientation.lock('landscape').catch(() => {});
+          this.overlay.classList.add('player-immersive');
         } else {
-          await document.exitFullscreen();
-          if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
-          }
+          if (document.exitFullscreen) await document.exitFullscreen();
+          if (statusBar?.show) await statusBar.show().catch(() => {});
+          if (screen.orientation?.unlock) screen.orientation.unlock();
+          this.overlay.classList.remove('player-immersive');
         }
       } catch (e) {
-        showToast('Xoay ngang điện thoại để xem toàn màn hình');
+        // Một số WebView/thiết bị không hỗ trợ Fullscreen API; overlay vẫn phủ toàn màn hình.
+        this.overlay.classList.toggle('player-immersive');
+        if (statusBar?.hide) statusBar.hide().catch(() => {});
+        if (screen.orientation?.lock) screen.orientation.lock('landscape').catch(() => {});
       }
     }
 
@@ -869,8 +845,14 @@
 
     loadSource(index) {
       const src = this.sources[index];
-      if (!src) return;
+      if (!src || !src.url || !/^https?:\/\//i.test(src.url)) {
+        showToast('Nguồn phát không hợp lệ hoặc không khả dụng.');
+        this.hideLoader();
+        return;
+      }
       this.activeSourceIndex = index;
+      this.hlsNetworkRetries = 0;
+      this.hlsMediaRetries = 0;
       document.getElementById('btnSwitchServer').textContent = src.label.split('(')[0].trim();
 
       if (this.hls) {
@@ -886,9 +868,13 @@
 
         if (window.Hls && Hls.isSupported()) {
           this.hls = new Hls({
-            maxBufferLength: 30,
-            maxMaxBufferLength: 60,
-            enableWorker: true
+            maxBufferLength: 20,
+            maxMaxBufferLength: 40,
+            backBufferLength: 30,
+            enableWorker: true,
+            startLevel: -1,
+            capLevelToPlayerSize: true,
+            maxBufferHole: 0.5
           });
           this.hls.loadSource(src.url);
           this.hls.attachMedia(this.video);
@@ -899,19 +885,34 @@
           this.hls.on(Hls.Events.ERROR, (event, data) => {
             if (data.fatal) {
               console.warn('[HLS Fatal Error]', data);
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR && this.hls && this.hlsNetworkRetries < 2) {
+                this.hlsNetworkRetries += 1;
+                this.hls.startLoad();
+                return;
+              }
+              if (data.type === Hls.ErrorTypes.MEDIA_ERROR && this.hls && this.hlsMediaRetries < 1) {
+                this.hlsMediaRetries += 1;
+                this.hls.recoverMediaError();
+                return;
+              }
               if (this.sources[index + 1]) {
-                showToast('Đang tự động chuyển sang Server dự phòng...');
+                showToast('Nguồn phát gặp lỗi, đang thử server dự phòng...');
                 this.loadSource(index + 1);
               } else {
                 this.hideLoader();
-                showToast('Luồng HLS gặp sự cố, vui lòng chọn Server khác.');
+                showToast('Không thể phát nguồn này. Hãy thử server khác hoặc kiểm tra kết nối.');
               }
             }
           });
         } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
           this.video.src = src.url;
-          this.video.play().catch(() => {});
+          this.video.play().then(() => this.hideLoader()).catch(() => {
+            this.hideLoader();
+            showToast('Không thể tự phát video. Nhấn nút phát để thử lại.');
+          });
+        } else {
           this.hideLoader();
+          showToast('Thiết bị chưa hỗ trợ HLS. Hãy thử nguồn Embed hoặc thiết bị khác.');
         }
       } else {
         this.video.pause();
@@ -919,7 +920,7 @@
         this.video.classList.add('hidden');
         document.getElementById('hudBottomControls').classList.add('hidden');
         this.embed.classList.remove('hidden');
-        this.embed.src = src.url;
+        this.embed.src = safeMediaUrl(src.url, 'about:blank');
         this.hideLoader();
       }
     }
@@ -1031,6 +1032,10 @@
       this.embed.src = 'about:blank';
       this.overlay.classList.add('hidden');
       syncNativeStatusBar('#141414');
+      const statusBar = window.Capacitor?.Plugins?.StatusBar;
+      if (statusBar?.show) statusBar.show().catch(() => {});
+      this.overlay.classList.remove('player-immersive');
+      if (screen.orientation?.unlock) screen.orientation.unlock();
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
       }

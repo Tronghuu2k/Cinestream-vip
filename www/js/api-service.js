@@ -119,40 +119,42 @@
       cache.clear();
     }
 
+    async requestJson(url, timeoutMs = 10000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+          cache: 'no-store'
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status} khi tải dữ liệu phim`);
+        return await response.json();
+      } catch (error) {
+        if (error.name === 'AbortError') throw new Error('Yêu cầu quá thời gian chờ. Vui lòng thử lại.');
+        throw error;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     async fetchServer(endpoint) {
       if (this.bothServersFailed) return null;
-
       const candidates = [];
       if (this.activeServer) candidates.push(this.activeServer);
       if (this.primaryServer && !candidates.includes(this.primaryServer)) candidates.push(this.primaryServer);
       if (this.backupServer && !candidates.includes(this.backupServer)) candidates.push(this.backupServer);
-
-      if (candidates.length === 0 && window.location.protocol !== 'file:' && window.location.protocol !== 'capacitor:' && window.location.protocol !== 'http:' && window.location.protocol !== 'https:') {
-        candidates.push('');
-      }
-
       if (candidates.length === 0) return null;
 
       for (const base of candidates) {
         try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3500);
-          const fullUrl = base ? `${base}${endpoint}` : endpoint;
-          const res = await fetch(fullUrl, { signal: controller.signal });
-          clearTimeout(timeoutId);
-          if (res.ok) {
-            const data = await res.json();
-            if (base && this.activeServer !== base) {
-              this.activeServer = base;
-              console.log(`✅ [MovieApi] Đã kết nối thành công máy chủ: ${base}`);
-            }
-            return data;
-          }
-        } catch (e) {
-          console.warn(`[MovieApi] Máy chủ ${base || 'gốc'} không phản hồi (${endpoint}):`, e.message);
+          const data = await this.requestJson(base ? `${base}${endpoint}` : endpoint, 7000);
+          if (base && this.activeServer !== base) this.activeServer = base;
+          return data;
+        } catch (error) {
+          console.warn(`[MovieApi] Nguồn ${base || 'gốc'} lỗi (${endpoint}):`, error.message);
         }
       }
-
       return null;
     }
 
@@ -176,11 +178,11 @@
       // Chế độ Standalone Direct CDN (Không cần Server)
       try {
         const [resHot, resBo, resLe, resRap, resAnime] = await Promise.allSettled([
-          fetch(`${PHIM_API_BASE}/danh-sach/phim-moi-cap-nhat?page=1`).then(r => r.json()),
-          fetch(`${PHIM_API_BASE}/v1/api/danh-sach/phim-bo?page=1`).then(r => r.json()),
-          fetch(`${PHIM_API_BASE}/v1/api/danh-sach/phim-le?page=1`).then(r => r.json()),
-          fetch(`${PHIM_API_BASE}/v1/api/danh-sach/phim-chieu-rap?page=1`).then(r => r.json()),
-          fetch(`${PHIM_API_BASE}/v1/api/danh-sach/hoat-hinh?page=1`).then(r => r.json())
+          this.requestJson(`${PHIM_API_BASE}/danh-sach/phim-moi-cap-nhat?page=1`),
+          this.requestJson(`${PHIM_API_BASE}/v1/api/danh-sach/phim-bo?page=1`),
+          this.requestJson(`${PHIM_API_BASE}/v1/api/danh-sach/phim-le?page=1`),
+          this.requestJson(`${PHIM_API_BASE}/v1/api/danh-sach/phim-chieu-rap?page=1`),
+          this.requestJson(`${PHIM_API_BASE}/v1/api/danh-sach/hoat-hinh?page=1`)
         ]);
 
         const sections = [];
@@ -315,8 +317,7 @@
         endpoint = `${PHIM_API_BASE}/v1/api/danh-sach/${slug}?page=${p}`;
       }
 
-      const res = await fetch(endpoint);
-      const json = await res.json();
+      const json = await this.requestJson(endpoint);
       if (!json.status && json.status !== 'success') {
         throw new Error('Không thể tải danh sách phim.');
       }
@@ -363,8 +364,7 @@
 
       // Standalone Direct API Search
       const url = `${PHIM_API_BASE}/v1/api/tim-kiem?keyword=${encodeURIComponent(q)}&limit=24`;
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await this.requestJson(url);
       
       const cdn = json.data?.APP_DOMAIN_CDN_IMAGE || DEFAULT_CDN_IMAGE;
       const rawItems = json.data?.items || [];
@@ -391,8 +391,7 @@
 
       // Standalone Direct API Movie Detail
       const url = `${PHIM_API_BASE}/phim/${slug}`;
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await this.requestJson(url);
 
       if (!json.status || !json.movie) {
         throw new Error('Không tìm thấy thông tin phim này.');
@@ -478,8 +477,7 @@
 
       // Standalone Direct API Stream Extraction
       const url = `${PHIM_API_BASE}/phim/${slug}`;
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await this.requestJson(url);
 
       if (!json.status || !json.episodes || json.episodes.length === 0) {
         throw new Error('Không tìm thấy nguồn video phát cho phim này.');
