@@ -1,16 +1,15 @@
 {
-  "version": "2.0.0",
-  "versionCode": 3,
+  "version": "2.0.1",
+  "versionCode": 4,
   "releaseDate": "2026-11-20",
   "forceUpdate": false,
-  "title": "ROSI CINEMA 2.0 Stable",
+  "title": "ROSI CINEMA 2.0.1 Player Fix",
   "changelog": [
-    "Ẩn hoàn toàn cửa sổ cấu hình và popup cập nhật gây lỗi version.json.",
-    "Nâng cấp xử lý timeout, HTTP status và lỗi JSON cho các yêu cầu API.",
-    "Nâng cấp trình phát HLS, phục hồi lỗi mạng/media và xử lý nguồn dự phòng.",
-    "Bổ sung Fit, Fill, Stretch và Original Ratio; lưu chế độ khung hình.",
-    "Đóng gói HLS.js nội bộ khi build APK; giữ CDN làm phương án dự phòng cho web preview.",
-    "Tắt cleartext HTTP mặc định để tăng an toàn kết nối."
+    "Khắc phục vòng đời nguồn video: dừng và giải phóng nguồn cũ trước khi phát tập mới.",
+    "Chuẩn hóa nguồn HLS/embed trả về từ API, nhận diện M3U8 theo URL và loại bỏ URL không hợp lệ.",
+    "Chờ sự kiện MEDIA_ATTACHED trước khi nạp HLS manifest.",
+    "Bổ sung timeout tải manifest, xử lý lỗi video HTML5 và tự chuyển nguồn dự phòng.",
+    "Hiển thị lỗi nguồn rõ ràng hơn thay vì để trình phát đứng ở 00:00."
   ],
   "downloadUrl": "https://github.com/tronghuu2k/rosi-cinema-apk/releases/latest",
   "githubRepoUrl": "https://github.com/tronghuu2k/rosi-cinema-apk"

@@ -594,6 +594,8 @@
       this.activeSourceIndex = 0;
       this.hlsNetworkRetries = 0;
       this.hlsMediaRetries = 0;
+      this.playRequestId = 0;
+      this.sourceLoadTimer = null;
 
       this.speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
       this.speedIdx = 1;
@@ -814,6 +816,7 @@
     }
 
     async playMovie(slug, episodeNum = '1', title = '', poster = '') {
+      const requestId = ++this.playRequestId;
       this.currentSlug = slug;
       this.currentEpisode = String(episodeNum);
       if (title) this.currentTitle = title;
@@ -824,99 +827,191 @@
       this.overlay.classList.remove('hidden');
       this.closeDrawer();
       this.resetHudTimer();
-
+      this.showLoader(`Đang nạp nguồn phát ${epDisplay}...`);
       document.getElementById('hudMovieTitle').textContent = this.currentTitle || slug;
       document.getElementById('hudEpSubtitle').textContent = epDisplay;
-      this.showLoader(`Đang nạp nguồn phát ${epDisplay}...`);
+      document.getElementById('currentTimeText').textContent = '00:00';
+      document.getElementById('durationTimeText').textContent = '00:00';
+      document.getElementById('seekSlider').value = 0;
+
+      this.stopCurrentMedia();
+      this.sources = [];
+      this.episodes = [];
 
       try {
         const streamData = await window.movieApi.getStream(slug, this.currentEpisode);
-        this.sources = streamData.sources || [];
-        this.episodes = streamData.episodes || [];
+        if (requestId !== this.playRequestId) return;
+        const rawSources = Array.isArray(streamData?.sources) ? streamData.sources : [];
+        this.sources = rawSources.map((source, index) => {
+          const url = typeof source === 'string' ? source : (source?.url || source?.link || source?.link_m3u8 || source?.link_embed || '');
+          const isHls = Boolean(source?.isHls || source?.type === 'm3u8' || /\.m3u8(?:$|[?#])/i.test(url));
+          return {
+            ...((typeof source === 'object' && source) ? source : {}),
+            url,
+            isHls,
+            type: isHls ? 'm3u8' : (source?.type || 'embed'),
+            label: source?.label || `Nguồn ${index + 1}`
+          };
+        }).filter(source => /^https?:\/\//i.test(source.url));
+        this.episodes = Array.isArray(streamData?.episodes) ? streamData.episodes : [];
         this.activeSourceIndex = 0;
 
+        if (!this.sources.length) {
+          throw new Error('API có phản hồi nhưng không trả về đường dẫn video hợp lệ cho tập này.');
+        }
         window.app.saveHistory(slug, this.currentTitle || slug, this.currentPoster, this.currentEpisode);
         this.loadSource(0);
       } catch (err) {
+        if (requestId !== this.playRequestId) return;
         this.hideLoader();
-        showToast(err.message || 'Lỗi tải nguồn phát video');
+        console.error('[ROSI Player] Không lấy được nguồn phát:', err);
+        showToast(err.message || 'Không lấy được nguồn phát video.');
       }
+    }
+
+    stopCurrentMedia() {
+      clearTimeout(this.sourceLoadTimer);
+      if (this.hls) {
+        try { this.hls.destroy(); } catch (e) { console.warn('[ROSI Player] HLS destroy:', e); }
+        this.hls = null;
+      }
+      try {
+        this.video.pause();
+        this.video.removeAttribute('src');
+        this.video.load();
+      } catch (e) {}
+      this.video.onerror = null;
+      this.video.onloadedmetadata = null;
+      this.video.oncanplay = null;
+      this.embed.src = 'about:blank';
+      this.embed.classList.add('hidden');
+      this.video.classList.remove('hidden');
+      document.getElementById('hudBottomControls').classList.remove('hidden');
     }
 
     loadSource(index) {
       const src = this.sources[index];
       if (!src || !src.url || !/^https?:\/\//i.test(src.url)) {
-        showToast('Nguồn phát không hợp lệ hoặc không khả dụng.');
         this.hideLoader();
+        showToast('Nguồn phát không hợp lệ hoặc không khả dụng.');
         return;
       }
       this.activeSourceIndex = index;
       this.hlsNetworkRetries = 0;
       this.hlsMediaRetries = 0;
-      document.getElementById('btnSwitchServer').textContent = src.label.split('(')[0].trim();
+      clearTimeout(this.sourceLoadTimer);
+      document.getElementById('btnSwitchServer').textContent = (src.label || `Nguồn ${index + 1}`).split('(')[0].trim();
+      this.stopCurrentMedia();
+      this.showLoader(`Đang kết nối ${src.label || 'nguồn video'}...`);
 
-      if (this.hls) {
-        this.hls.destroy();
-        this.hls = null;
-      }
+      const tryNext = (reason) => {
+        console.warn('[ROSI Player] Nguồn phát lỗi:', reason);
+        if (this.sources[index + 1]) {
+          showToast('Nguồn hiện tại không phát được, đang thử nguồn dự phòng...');
+          this.loadSource(index + 1);
+        } else {
+          this.hideLoader();
+          showToast(`Không phát được video: ${reason}. Hãy thử server khác hoặc kiểm tra nguồn phim.`);
+        }
+      };
 
-      if (src.isHls) {
+      const isHls = Boolean(src.isHls || src.type === 'm3u8' || /\.m3u8(?:$|[?#])/i.test(src.url));
+      this.video.onloadedmetadata = () => {
+        clearTimeout(this.sourceLoadTimer);
+        this.hideLoader();
+        const duration = Number.isFinite(this.video.duration) ? this.video.duration : 0;
+        document.getElementById('durationTimeText').textContent = formatTime(duration);
+      };
+      this.video.oncanplay = () => this.hideLoader();
+      this.video.onerror = () => {
+        const mediaError = this.video.error;
+        const code = mediaError?.code || 0;
+        const detail = ({1: 'phát bị hủy', 2: 'lỗi mạng hoặc máy chủ', 3: 'lỗi giải mã video', 4: 'định dạng hoặc URL không được hỗ trợ'})[code] || 'không đọc được dữ liệu video';
+        if (isHls && this.hls) return; // HLS.js sẽ xử lý và tự chuyển nguồn khi lỗi fatal.
+        tryNext(detail);
+      };
+      if (isHls) {
         this.embed.classList.add('hidden');
-        this.embed.src = 'about:blank';
         this.video.classList.remove('hidden');
         document.getElementById('hudBottomControls').classList.remove('hidden');
 
-        if (window.Hls && Hls.isSupported()) {
-          this.hls = new Hls({
-            maxBufferLength: 20,
-            maxMaxBufferLength: 40,
-            backBufferLength: 30,
-            enableWorker: true,
-            startLevel: -1,
-            capLevelToPlayerSize: true,
-            maxBufferHole: 0.5
-          });
-          this.hls.loadSource(src.url);
-          this.hls.attachMedia(this.video);
-          this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            this.hideLoader();
-            this.video.play().catch(() => {});
-          });
-          this.hls.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
-              console.warn('[HLS Fatal Error]', data);
-              if (data.type === Hls.ErrorTypes.NETWORK_ERROR && this.hls && this.hlsNetworkRetries < 2) {
+        const HlsCtor = window.Hls;
+        if (HlsCtor && HlsCtor.isSupported()) {
+          try {
+            this.hls = new HlsCtor({
+              maxBufferLength: 20,
+              maxMaxBufferLength: 40,
+              backBufferLength: 30,
+              enableWorker: true,
+              startLevel: -1,
+              capLevelToPlayerSize: true,
+              maxBufferHole: 0.5,
+              manifestLoadingTimeOut: 15000,
+              levelLoadingTimeOut: 15000,
+              fragLoadingTimeOut: 20000,
+              manifestLoadingMaxRetry: 1,
+              levelLoadingMaxRetry: 1,
+              fragLoadingMaxRetry: 2
+            });
+            const hls = this.hls;
+            this.sourceLoadTimer = setTimeout(() => {
+              if (this.hls === hls && this.video.readyState < 1) tryNext('quá thời gian tải danh sách phát HLS');
+            }, 25000);
+            hls.on(HlsCtor.Events.MEDIA_ATTACHED, () => hls.loadSource(src.url));
+            hls.on(HlsCtor.Events.MANIFEST_PARSED, () => {
+              clearTimeout(this.sourceLoadTimer);
+              this.hideLoader();
+              this.video.play().catch(error => {
+                console.warn('[ROSI Player] Autoplay bị chặn:', error);
+                showToast('Nguồn đã tải. Nhấn nút Play để bắt đầu xem.');
+              });
+            });
+            hls.on(HlsCtor.Events.ERROR, (event, data) => {
+              if (!data?.fatal || this.hls !== hls) return;
+              if (data.type === HlsCtor.ErrorTypes.NETWORK_ERROR && this.hlsNetworkRetries < 2) {
                 this.hlsNetworkRetries += 1;
-                this.hls.startLoad();
+                hls.startLoad();
                 return;
               }
-              if (data.type === Hls.ErrorTypes.MEDIA_ERROR && this.hls && this.hlsMediaRetries < 1) {
+              if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR && this.hlsMediaRetries < 1) {
                 this.hlsMediaRetries += 1;
-                this.hls.recoverMediaError();
+                hls.recoverMediaError();
                 return;
               }
-              if (this.sources[index + 1]) {
-                showToast('Nguồn phát gặp lỗi, đang thử server dự phòng...');
-                this.loadSource(index + 1);
-              } else {
-                this.hideLoader();
-                showToast('Không thể phát nguồn này. Hãy thử server khác hoặc kiểm tra kết nối.');
-              }
-            }
-          });
+              tryNext(data.details || data.type || 'lỗi HLS');
+            });
+            hls.attachMedia(this.video);
+          } catch (error) {
+            tryNext(error.message || 'không khởi tạo được HLS.js');
+          }
         } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
           this.video.src = src.url;
-          this.video.play().then(() => this.hideLoader()).catch(() => {
-            this.hideLoader();
-            showToast('Không thể tự phát video. Nhấn nút phát để thử lại.');
+          this.video.load();
+          this.sourceLoadTimer = setTimeout(() => {
+            if (this.video.readyState < 1) tryNext('quá thời gian tải video HLS');
+          }, 25000);
+          this.video.play().catch(error => {
+            console.warn('[ROSI Player] Native HLS play:', error);
+            if (error?.name === 'NotAllowedError') {
+              this.hideLoader();
+              showToast('Nguồn đã tải. Nhấn nút Play để bắt đầu xem.');
+            } else {
+              tryNext(error?.message || 'không thể bắt đầu phát HLS');
+            }
           });
         } else {
-          this.hideLoader();
-          showToast('Thiết bị chưa hỗ trợ HLS. Hãy thử nguồn Embed hoặc thiết bị khác.');
+          const embedIndex = this.sources.findIndex((item, i) => i > index && !item.isHls);
+          if (embedIndex >= 0) {
+            showToast('Thiết bị không hỗ trợ HLS trực tiếp, đang thử nguồn nhúng dự phòng...');
+            this.loadSource(embedIndex);
+          } else {
+            tryNext('thiếu HLS.js và thiết bị không hỗ trợ HLS gốc');
+          }
         }
       } else {
         this.video.pause();
-        this.video.src = '';
+        this.video.removeAttribute('src');
+        this.video.load();
         this.video.classList.add('hidden');
         document.getElementById('hudBottomControls').classList.add('hidden');
         this.embed.classList.remove('hidden');
@@ -1023,13 +1118,8 @@
     }
 
     close() {
-      if (this.hls) {
-        this.hls.destroy();
-        this.hls = null;
-      }
-      this.video.pause();
-      this.video.src = '';
-      this.embed.src = 'about:blank';
+      this.playRequestId += 1;
+      this.stopCurrentMedia();
       this.overlay.classList.add('hidden');
       syncNativeStatusBar('#141414');
       const statusBar = window.Capacitor?.Plugins?.StatusBar;
