@@ -12,6 +12,7 @@
     if (metaTheme) metaTheme.setAttribute('content', hexColor);
     const statusBar = window.Capacitor?.Plugins?.StatusBar;
     if (statusBar) {
+      statusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
       statusBar.setStyle({ style: 'DARK' }).catch(() => {});
       statusBar.setBackgroundColor({ color: hexColor }).catch(() => {});
     }
@@ -69,6 +70,7 @@
       syncNativeStatusBar('#141414');
       this.bindEvents();
       this.setupAndroidBackHandler();
+      this.setupOrientationHandler();
       this.loadHome(false);
 
       // Cập nhật ứng dụng được tắt trong bản người dùng; không hiện popup/cảnh báo version.json.
@@ -231,6 +233,29 @@
       }
 
       return false;
+    }
+
+    setupOrientationHandler() {
+      const handleOrientationChange = () => {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const statusBar = window.Capacitor?.Plugins?.StatusBar;
+        const playerOverlay = document.getElementById('playerOverlay');
+        const isPlayerOpen = playerOverlay && !playerOverlay.classList.contains('hidden');
+
+        if (isPlayerOpen && isLandscape) {
+          playerOverlay.classList.add('player-immersive');
+          if (statusBar?.hide) statusBar.hide().catch(() => {});
+        } else if (!isPlayerOpen) {
+          syncNativeStatusBar('#141414');
+          if (statusBar?.show) statusBar.show().catch(() => {});
+        }
+      };
+
+      window.addEventListener('resize', handleOrientationChange);
+      window.addEventListener('orientationchange', () => setTimeout(handleOrientationChange, 120));
+      if (screen.orientation && typeof screen.orientation.addEventListener === 'function') {
+        screen.orientation.addEventListener('change', () => setTimeout(handleOrientationChange, 120));
+      }
     }
 
     goHome() {
@@ -774,11 +799,41 @@
       }
     }
 
+    async safeAutoPlay() {
+      try {
+        const playPromise = this.video.play();
+        if (playPromise !== undefined) await playPromise;
+        this.updatePlayIcon(true);
+      } catch (err) {
+        console.warn('[ROSI Player] Autoplay có tiếng bị chặn, thử phát tắt tiếng tự động:', err?.name || err);
+        try {
+          this.video.muted = true;
+          const muteBtn = document.getElementById('btnMute');
+          if (muteBtn) muteBtn.textContent = '🔇';
+          await this.video.play();
+          this.updatePlayIcon(true);
+          showToast('🔇 Đã tự động phát tắt tiếng — chạm nút Loa để bật tiếng', 3200);
+        } catch (mutedErr) {
+          this.updatePlayIcon(false);
+          showToast('Nguồn đã sẵn sàng. Nhấn nút Play đỏ ở giữa để xem.');
+        }
+      }
+    }
+
     togglePlay() {
       if (this.video.paused) {
-        this.video.play().catch(() => {});
+        if (!this.video.currentSrc && !this.hls && this.sources.length > 0) {
+          this.loadSource(this.activeSourceIndex || 0);
+          return;
+        }
+        this.video.play().then(() => {
+          this.updatePlayIcon(true);
+        }).catch(() => {
+          this.safeAutoPlay();
+        });
       } else {
         this.video.pause();
+        this.updatePlayIcon(false);
       }
       this.resetHudTimer();
     }
@@ -825,6 +880,10 @@
       const epDisplay = formatEpisodeLabel(this.currentEpisode);
       syncNativeStatusBar('#000000');
       this.overlay.classList.remove('hidden');
+      if (window.innerWidth > window.innerHeight) {
+        this.overlay.classList.add('player-immersive');
+        window.Capacitor?.Plugins?.StatusBar?.hide?.().catch(() => {});
+      }
       this.closeDrawer();
       this.resetHudTimer();
       this.showLoader(`Đang nạp nguồn phát ${epDisplay}...`);
@@ -904,119 +963,162 @@
       this.stopCurrentMedia();
       this.showLoader(`Đang kết nối ${src.label || 'nguồn video'}...`);
 
+      const currentReqId = this.playRequestId;
+      let settled = false;
+
       const tryNext = (reason) => {
+        if (settled || currentReqId !== this.playRequestId) return;
+        settled = true;
+        clearTimeout(this.sourceLoadTimer);
         console.warn('[ROSI Player] Nguồn phát lỗi:', reason);
         if (this.sources[index + 1]) {
-          showToast('Nguồn hiện tại không phát được, đang thử nguồn dự phòng...');
+          showToast('Đang chuyển sang nguồn phát dự phòng...');
           this.loadSource(index + 1);
         } else {
           this.hideLoader();
-          showToast(`Không phát được video: ${reason}. Hãy thử server khác hoặc kiểm tra nguồn phim.`);
+          showToast(`Không phát được video: ${reason}. Hãy thử server khác.`);
         }
       };
 
       const isHls = Boolean(src.isHls || src.type === 'm3u8' || /\.m3u8(?:$|[?#])/i.test(src.url));
-      this.video.onloadedmetadata = () => {
-        clearTimeout(this.sourceLoadTimer);
-        this.hideLoader();
-        const duration = Number.isFinite(this.video.duration) ? this.video.duration : 0;
-        document.getElementById('durationTimeText').textContent = formatTime(duration);
-      };
-      this.video.oncanplay = () => this.hideLoader();
-      this.video.onerror = () => {
-        const mediaError = this.video.error;
-        const code = mediaError?.code || 0;
-        const detail = ({1: 'phát bị hủy', 2: 'lỗi mạng hoặc máy chủ', 3: 'lỗi giải mã video', 4: 'định dạng hoặc URL không được hỗ trợ'})[code] || 'không đọc được dữ liệu video';
-        if (isHls && this.hls) return; // HLS.js sẽ xử lý và tự chuyển nguồn khi lỗi fatal.
-        tryNext(detail);
-      };
-      if (isHls) {
-        this.embed.classList.add('hidden');
-        this.video.classList.remove('hidden');
-        document.getElementById('hudBottomControls').classList.remove('hidden');
 
-        const HlsCtor = window.Hls;
-        if (HlsCtor && HlsCtor.isSupported()) {
-          try {
-            this.hls = new HlsCtor({
-              maxBufferLength: 20,
-              maxMaxBufferLength: 40,
-              backBufferLength: 30,
-              enableWorker: true,
-              startLevel: -1,
-              capLevelToPlayerSize: true,
-              maxBufferHole: 0.5,
-              manifestLoadingTimeOut: 15000,
-              levelLoadingTimeOut: 15000,
-              fragLoadingTimeOut: 20000,
-              manifestLoadingMaxRetry: 1,
-              levelLoadingMaxRetry: 1,
-              fragLoadingMaxRetry: 2
-            });
-            const hls = this.hls;
-            this.sourceLoadTimer = setTimeout(() => {
-              if (this.hls === hls && this.video.readyState < 1) tryNext('quá thời gian tải danh sách phát HLS');
-            }, 25000);
-            hls.on(HlsCtor.Events.MEDIA_ATTACHED, () => hls.loadSource(src.url));
-            hls.on(HlsCtor.Events.MANIFEST_PARSED, () => {
-              clearTimeout(this.sourceLoadTimer);
-              this.hideLoader();
-              this.video.play().catch(error => {
-                console.warn('[ROSI Player] Autoplay bị chặn:', error);
-                showToast('Nguồn đã tải. Nhấn nút Play để bắt đầu xem.');
-              });
-            });
-            hls.on(HlsCtor.Events.ERROR, (event, data) => {
-              if (!data?.fatal || this.hls !== hls) return;
-              if (data.type === HlsCtor.ErrorTypes.NETWORK_ERROR && this.hlsNetworkRetries < 2) {
-                this.hlsNetworkRetries += 1;
-                hls.startLoad();
-                return;
-              }
-              if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR && this.hlsMediaRetries < 1) {
-                this.hlsMediaRetries += 1;
-                hls.recoverMediaError();
-                return;
-              }
-              tryNext(data.details || data.type || 'lỗi HLS');
-            });
-            hls.attachMedia(this.video);
-          } catch (error) {
-            tryNext(error.message || 'không khởi tạo được HLS.js');
-          }
-        } else if (this.video.canPlayType('application/vnd.apple.mpegurl')) {
-          this.video.src = src.url;
-          this.video.load();
-          this.sourceLoadTimer = setTimeout(() => {
-            if (this.video.readyState < 1) tryNext('quá thời gian tải video HLS');
-          }, 25000);
-          this.video.play().catch(error => {
-            console.warn('[ROSI Player] Native HLS play:', error);
-            if (error?.name === 'NotAllowedError') {
-              this.hideLoader();
-              showToast('Nguồn đã tải. Nhấn nút Play để bắt đầu xem.');
-            } else {
-              tryNext(error?.message || 'không thể bắt đầu phát HLS');
-            }
-          });
-        } else {
-          const embedIndex = this.sources.findIndex((item, i) => i > index && !item.isHls);
-          if (embedIndex >= 0) {
-            showToast('Thiết bị không hỗ trợ HLS trực tiếp, đang thử nguồn nhúng dự phòng...');
-            this.loadSource(embedIndex);
-          } else {
-            tryNext('thiếu HLS.js và thiết bị không hỗ trợ HLS gốc');
-          }
-        }
-      } else {
+      if (!isHls) {
         this.video.pause();
         this.video.removeAttribute('src');
         this.video.load();
         this.video.classList.add('hidden');
         document.getElementById('hudBottomControls').classList.add('hidden');
         this.embed.classList.remove('hidden');
+        this.embed.onload = () => {
+          clearTimeout(this.sourceLoadTimer);
+          this.hideLoader();
+        };
         this.embed.src = safeMediaUrl(src.url, 'about:blank');
-        this.hideLoader();
+        this.sourceLoadTimer = setTimeout(() => this.hideLoader(), 3500);
+        return;
+      }
+
+      this.embed.classList.add('hidden');
+      this.video.classList.remove('hidden');
+      document.getElementById('hudBottomControls').classList.remove('hidden');
+
+      // Tầng 2: Phát trực tiếp bằng trình giải mã gốc Android WebView (vượt qua lỗi CORS Origin của XHR)
+      const startNativeHlsFallback = (fallbackReason) => {
+        if (settled || currentReqId !== this.playRequestId) return;
+        console.info('[ROSI Player] Chuyển sang Native HTML5 Video Engine:', fallbackReason);
+        clearTimeout(this.sourceLoadTimer);
+        if (this.hls) {
+          try { this.hls.destroy(); } catch (e) {}
+          this.hls = null;
+        }
+
+        this.showLoader('Đang kết nối luồng phát trực tiếp...');
+        this.video.onloadedmetadata = () => {
+          clearTimeout(this.sourceLoadTimer);
+          this.hideLoader();
+          const duration = Number.isFinite(this.video.duration) ? this.video.duration : 0;
+          document.getElementById('durationTimeText').textContent = formatTime(duration);
+        };
+        this.video.oncanplay = () => {
+          clearTimeout(this.sourceLoadTimer);
+          this.hideLoader();
+        };
+        this.video.onerror = () => {
+          const code = this.video.error?.code || 0;
+          const detail = ({
+            1: 'phát bị hủy',
+            2: 'lỗi mạng/máy chủ',
+            3: 'lỗi giải mã video',
+            4: 'định dạng không hỗ trợ'
+          })[code] || 'không tải được luồng trực tiếp';
+          tryNext(detail);
+        };
+
+        this.video.src = src.url;
+        this.video.load();
+        this.safeAutoPlay();
+
+        this.sourceLoadTimer = setTimeout(() => {
+          if (this.video.readyState < 1) {
+            tryNext('quá thời gian phản hồi từ máy chủ phim');
+          }
+        }, 10000);
+      };
+
+      // Tầng 1: HLS.js (tắt WebWorker để tránh treo trên Android WebView)
+      const HlsCtor = window.Hls;
+      if (HlsCtor && HlsCtor.isSupported()) {
+        try {
+          this.video.onloadedmetadata = () => {
+            clearTimeout(this.sourceLoadTimer);
+            this.hideLoader();
+            const duration = Number.isFinite(this.video.duration) ? this.video.duration : 0;
+            document.getElementById('durationTimeText').textContent = formatTime(duration);
+          };
+          this.video.oncanplay = () => {
+            clearTimeout(this.sourceLoadTimer);
+            this.hideLoader();
+          };
+          this.video.onerror = () => {
+            if (!settled && currentReqId === this.playRequestId) {
+              startNativeHlsFallback('HTML5 video error trong chế độ HLS.js');
+            }
+          };
+
+          this.hls = new HlsCtor({
+            maxBufferLength: 20,
+            maxMaxBufferLength: 40,
+            backBufferLength: 30,
+            enableWorker: false,
+            startLevel: -1,
+            maxBufferHole: 0.5,
+            manifestLoadingTimeOut: 9000,
+            levelLoadingTimeOut: 9000,
+            fragLoadingTimeOut: 12000,
+            manifestLoadingMaxRetry: 1,
+            levelLoadingMaxRetry: 1,
+            fragLoadingMaxRetry: 2
+          });
+
+          const hls = this.hls;
+          this.sourceLoadTimer = setTimeout(() => {
+            if (this.hls === hls && this.video.readyState < 1) {
+              startNativeHlsFallback('HLS.js quá thời gian tải manifest');
+            }
+          }, 9000);
+
+          hls.on(HlsCtor.Events.MEDIA_ATTACHED, () => {
+            if (this.hls === hls) hls.loadSource(src.url);
+          });
+
+          hls.on(HlsCtor.Events.MANIFEST_PARSED, () => {
+            if (this.hls !== hls) return;
+            clearTimeout(this.sourceLoadTimer);
+            this.hideLoader();
+            this.safeAutoPlay();
+          });
+
+          hls.on(HlsCtor.Events.ERROR, (event, data) => {
+            if (!data?.fatal || this.hls !== hls) return;
+            if (data.type === HlsCtor.ErrorTypes.NETWORK_ERROR && this.hlsNetworkRetries < 1) {
+              this.hlsNetworkRetries += 1;
+              hls.startLoad();
+              return;
+            }
+            if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR && this.hlsMediaRetries < 1) {
+              this.hlsMediaRetries += 1;
+              hls.recoverMediaError();
+              return;
+            }
+            startNativeHlsFallback(data.details || data.type || 'HLS.js fatal error');
+          });
+
+          hls.attachMedia(this.video);
+        } catch (error) {
+          startNativeHlsFallback(error.message || 'HLS.js init exception');
+        }
+      } else {
+        startNativeHlsFallback('Trình duyệt ưu tiên HLS gốc');
       }
     }
 

@@ -215,9 +215,9 @@
   <div class="player-overlay nf-player-cinema hidden" id="playerOverlay">
     <div class="player-container nf-player-cinema" id="playerContainer">
       <!-- HTML5 HLS Video -->
-      <video id="videoElement" playsinline webkit-playsinline preload="auto"></video>
+      <video id="videoElement" playsinline webkit-playsinline preload="auto" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs="></video>
       <!-- Fallback Embed Iframe -->
-      <iframe id="embedFrame" class="hidden" allowfullscreen frameborder="0" allow="autoplay; fullscreen; picture-in-picture"></iframe>
+      <iframe id="embedFrame" class="hidden" allowfullscreen frameborder="0" referrerpolicy="no-referrer" allow="autoplay; fullscreen; picture-in-picture; encrypted-media"></iframe>
 
       <!-- Double-tap seek feedback -->
       <div class="seek-indicator left hidden" id="seekLeft">-10s</div>

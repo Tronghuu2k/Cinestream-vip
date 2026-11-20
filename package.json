@@ -1,7 +1,7 @@
 {
   "name": "rosi-cinema-app",
-  "version": "2.0.1",
-  "description": "ROSI CINEMA 2.0 Stable - Android and TV responsive streaming app",
+  "version": "2.0.2",
+  "description": "ROSI CINEMA 2.0.2 - Fullscreen Landscape & Multi-Engine HLS Player",
   "scripts": {
     "cap:add": "npx cap add android",
     "cap:sync": "npx cap sync android",

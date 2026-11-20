@@ -3,19 +3,20 @@
   "appName": "Rosi Cinema",
   "webDir": "www",
   "bundledWebRuntime": false,
+  "backgroundColor": "#141414",
   "server": {
     "androidScheme": "https",
     "cleartext": false
   },
   "android": {
-    "allowMixedContent": false,
+    "allowMixedContent": true,
     "backgroundColor": "#141414"
   },
   "plugins": {
     "SplashScreen": {
-      "launchShowDuration": 1600,
+      "launchShowDuration": 1400,
       "launchAutoHide": true,
-      "launchFadeOutDuration": 300,
+      "launchFadeOutDuration": 250,
       "backgroundColor": "#141414",
       "androidSplashResourceName": "splash",
       "androidScaleType": "CENTER_CROP",
@@ -26,7 +27,7 @@
     "StatusBar": {
       "style": "DARK",
       "backgroundColor": "#141414",
-      "overlaysWebView": false
+      "overlaysWebView": true
     }
   }
 }

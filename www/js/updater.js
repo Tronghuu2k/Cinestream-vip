@@ -4,8 +4,8 @@
  * Việc cài đặt APK vẫn do người dùng chủ động thực hiện qua bản phát hành tin cậy.
  */
 (function () {
-  const CURRENT_VERSION = '2.0.0';
-  const CURRENT_VERSION_CODE = 3;
+  const CURRENT_VERSION = '2.0.2';
+  const CURRENT_VERSION_CODE = 5;
   const DEFAULT_VERSION_URL = 'https://raw.githubusercontent.com/tronghuu2k/rosi-cinema-apk/main/version.json';
 
   class GitHubUpdater {

@@ -1,15 +1,14 @@
 {
-  "version": "2.0.1",
-  "versionCode": 4,
+  "version": "2.0.2",
+  "versionCode": 5,
   "releaseDate": "2026-11-20",
   "forceUpdate": false,
-  "title": "ROSI CINEMA 2.0.1 Player Fix",
+  "title": "ROSI CINEMA 2.0.2 Fullscreen & Player Engine Fix",
   "changelog": [
-    "Khắc phục vòng đời nguồn video: dừng và giải phóng nguồn cũ trước khi phát tập mới.",
-    "Chuẩn hóa nguồn HLS/embed trả về từ API, nhận diện M3U8 theo URL và loại bỏ URL không hợp lệ.",
-    "Chờ sự kiện MEDIA_ATTACHED trước khi nạp HLS manifest.",
-    "Bổ sung timeout tải manifest, xử lý lỗi video HTML5 và tự chuyển nguồn dự phòng.",
-    "Hiển thị lỗi nguồn rõ ràng hơn thay vì để trình phát đứng ở 00:00."
+    "Nâng cấp trình phát video 3 lớp tự động (HLS.js tắt Worker lỗi -> Native Android Video vượt CORS -> Server/Embed dự phòng).",
+    "Tự động xử lý chặn Autoplay sau khi tải API và loại bỏ icon Play xám mặc định của WebView.",
+    "Khắc phục triệt để dải viền trắng bên trái vùng camera đục lỗ khi xoay ngang ở cả Trang Chủ lẫn Trình Phát.",
+    "Tối ưu bố cục Trang Chủ & Banner Hero khi xoay ngang màn hình điện thoại để hiển thị trọn vẹn nội dung."
   ],
   "downloadUrl": "https://github.com/tronghuu2k/rosi-cinema-apk/releases/latest",
   "githubRepoUrl": "https://github.com/tronghuu2k/rosi-cinema-apk"
