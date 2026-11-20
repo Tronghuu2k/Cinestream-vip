@@ -1,22 +1,21 @@
 {
-  "name": "rosi-rap-phim",
-  "version": "2.1.0",
-  "private": true,
-  "description": "Rosi Rạp Phim 2.1 - giao diện điện ảnh Android",
+  "name": "rosi-cinema-app",
+  "version": "1.0.1",
+  "description": "ROSI CINEMA - Ung dung xem phim 4K VIP chuan Netflix (Standalone Direct CDN)",
   "scripts": {
-    "build": "node --check www/api-service.js && node --check www/app.js && esbuild www/app.js --bundle --format=iife --target=es2020 --outfile=www/bundle.js",
-    "android:add": "cap add android",
-    "android:sync": "cap sync android",
-    "android:open": "cap open android"
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "assets:generate": "npx capacitor-assets generate --android --iconBackgroundColor '#141414' --iconBackgroundColorDark '#141414' --splashBackgroundColor '#141414' --splashBackgroundColorDark '#141414'"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.0",
-    "@capacitor/app": "^7.0.0",
-    "@capacitor/core": "^7.4.0",
-    "@supabase/supabase-js": "^2.57.0"
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.4.0",
-    "esbuild": "^0.25.0"
+    "@capacitor/assets": "^3.0.5"
   }
 }

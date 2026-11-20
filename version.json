@@ -1,0 +1,14 @@
+{
+  "version": "1.0.1",
+  "versionCode": 2,
+  "releaseDate": "2026-11-20",
+  "forceUpdate": false,
+  "title": "Rosi Cinema VIP v1.0.1 (Netflix Dark Edition)",
+  "changelog": [
+    "Giao diện Đen chuẩn Netflix (#141414) & Rạp chiếu OLED (#000000) chống mỏi mắt",
+    "Hòa nền Hero Banner mượt mà, nút Phát tương phản cao & thanh kính mờ chuẩn Netflix Mobile",
+    "Đồng bộ màu thanh trạng thái Android (StatusBar) tự động chuyển #141414 <-> #000000 khi xem phim"
+  ],
+  "downloadUrl": "https://github.com/tronghuu2k/rosi-cinema-apk/releases/latest",
+  "githubRepoUrl": "https://github.com/tronghuu2k/rosi-cinema-apk"
+}

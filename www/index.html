@@ -1,56 +1,369 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#08090d">
-<meta name="color-scheme" content="dark">
-<meta name="description" content="Rosi Rạp Phim - thế giới điện ảnh trong tầm tay">
-<title>Rosi Rạp Phim 2.1</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#141414" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>ROSI CINEMA - Xem Phim 4K VIP</title>
+  <link rel="icon" type="image/png" href="img/app-icon.png" />
+  <link rel="apple-touch-icon" href="img/app-icon.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- HLS.js for ultra-fast M3U8 playback -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
 </head>
 <body>
-<header class="topbar">
-  <button class="brand" data-page="home" aria-label="Trang chủ"><span class="brand-mark">R</span><span class="brand-copy"><b>ROSI</b><small>RẠP PHIM</small></span></button>
-  <div class="top-actions">
-    <button class="icon-btn" id="searchToggle" aria-label="Tìm kiếm" title="Tìm kiếm">⌕</button><button class="icon-btn" id="cloudAccountBtn" aria-label="Đồng bộ đám mây" title="Đồng bộ đám mây">☁</button>
-    <button class="icon-btn refresh-btn" id="reloadBtn" aria-label="Tải lại trang" title="Tải lại trang">⟳</button>
+  <!-- TOP HEADER WITH NOTCH SAFE AREA -->
+  <header class="app-header nf-glass-bar" id="appHeader">
+    <div class="header-top">
+      <div class="brand" onclick="app.goHome()">
+        <span class="brand-icon">▶</span>
+        <span class="brand-name">ROSI <span class="brand-accent">CINEMA</span></span>
+        <span class="vip-tag">VIP 4K</span>
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-btn" id="btnOpenSearch" title="Tìm kiếm phim" aria-label="Tìm kiếm">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="11" cy="11" r="7"></circle>
+            <line x1="20" y1="20" x2="16.2" y2="16.2"></line>
+          </svg>
+        </button>
+        <button class="icon-btn" id="btnRefresh" title="Làm mới kho phim" aria-label="Làm mới">
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+        </button>
+        <button class="icon-btn" id="btnSettings" title="Cấu hình API & Cập nhật" aria-label="Cài đặt">
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- CATEGORY NAV BAR -->
+    <nav class="nav-pills" id="navPills">
+      <button class="nav-pill active" data-nav="home">Trang Chủ</button>
+      <button class="nav-pill" data-type="danh-sach" data-slug="phim-bo" data-title="Phim Bộ Mới">Phim Bộ</button>
+      <button class="nav-pill" data-type="danh-sach" data-slug="phim-le" data-title="Phim Lẻ Hay">Phim Lẻ</button>
+      <button class="nav-pill" data-type="danh-sach" data-slug="phim-chieu-rap" data-title="Phim Chiếu Rạp">Chiếu Rạp</button>
+      <button class="nav-pill" data-type="danh-sach" data-slug="hoat-hinh" data-title="Anime & Hoạt Hình">Hoạt Hình</button>
+      <button class="nav-pill" id="btnOpenGenres">Thể Loại ▾</button>
+      <button class="nav-pill" data-nav="favorites">Yêu Thích</button>
+    </nav>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content" id="mainContent">
+    <!-- LOADING SKELETON -->
+    <div class="loading-screen" id="loadingScreen">
+      <div class="spinner"></div>
+      <p>Đang tải kho phim ROSI CINEMA...</p>
+    </div>
+
+    <!-- ERROR BANNER -->
+    <div class="error-box hidden" id="errorBox">
+      <p id="errorMessage">Không thể kết nối kho phim.</p>
+      <button class="btn-primary" onclick="app.loadHome(true)">Thử Lại</button>
+    </div>
+
+    <!-- HOME VIEW -->
+    <div id="homeView" class="hidden">
+      <!-- HERO BANNER -->
+      <section class="hero-section" id="heroSection">
+        <img class="hero-bg" id="heroBg" src="img/placeholder.svg" alt="Hero Poster" />
+        <div class="hero-gradient nf-hero-top-fade nf-hero-bottom-fade"></div>
+        <div class="hero-info">
+          <div class="hero-badges">
+            <span class="badge-red nf-accent-red">TOP THỊNH HÀNH</span>
+            <span class="badge-gold" id="heroQuality">FHD • VIETSUB</span>
+            <span class="badge-dark" id="heroYear">2026</span>
+          </div>
+          <h1 class="hero-title" id="heroTitle">Đang tải phim...</h1>
+          <p class="hero-meta" id="heroMeta"></p>
+          <p class="hero-desc" id="heroDesc"></p>
+          <div class="hero-buttons">
+            <button class="btn-play nf-btn-play" id="heroPlayBtn">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <span>Xem Ngay</span>
+            </button>
+            <button class="btn-secondary nf-btn-secondary" id="heroDetailBtn">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              <span>Chi Tiết</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONTINUE WATCHING SECTION -->
+      <section class="movie-row hidden" id="historySection">
+        <div class="row-header">
+          <h2 class="row-title">⏱️ Tiếp Tục Xem</h2>
+          <button class="row-more" onclick="app.clearHistory()">Xóa lịch sử</button>
+        </div>
+        <div class="row-scroller" id="historyRow"></div>
+      </section>
+
+      <!-- DYNAMIC API SECTIONS -->
+      <div id="sectionsContainer"></div>
+    </div>
+
+    <!-- CATEGORY / SEARCH / FAVORITES GRID VIEW -->
+    <section id="gridView" class="grid-view hidden">
+      <div class="grid-header">
+        <button class="btn-back" onclick="app.goHome()">← Trang Chủ</button>
+        <h2 class="grid-title" id="gridTitle">Danh Sách Phim</h2>
+      </div>
+      <div class="movie-grid" id="movieGrid"></div>
+      <div class="pagination-bar hidden" id="paginationBar">
+        <button class="btn-secondary nf-btn-secondary" id="btnPrevPage">← Trang Trước</button>
+        <span class="page-indicator" id="pageIndicator">Trang 1</span>
+        <button class="btn-primary" id="btnNextPage">Trang Sau →</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- SEARCH OVERLAY -->
+  <div class="modal-overlay hidden" id="searchModal">
+    <div class="search-panel">
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9ca3af" stroke-width="2.2">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="20" y1="20" x2="16.2" y2="16.2"></line>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Nhập tên phim, diễn viên, anime..." autocomplete="off" />
+        <button class="icon-btn" id="btnClearSearch" title="Xóa">✕</button>
+        <button class="btn-cancel" id="btnCloseSearch">Đóng</button>
+      </div>
+      <div class="search-results" id="searchResults">
+        <p class="search-hint">Gõ từ khóa để tìm kiếm trực tiếp trên kho phim VIP...</p>
+      </div>
+    </div>
   </div>
-</header>
-<section class="welcome-strip" id="welcomeStrip"><span class="welcome-icon">✦</span><div><b id="welcomeTitle">Chào mừng đến Rosi Rạp Phim!</b><small>Chọn phim hay và tận hưởng khoảnh khắc của bạn.</small></div><button id="dismissWelcome" aria-label="Đóng lời chào">×</button></section>
-<section class="search-wrap hidden" id="searchWrap"><input id="searchInput" placeholder="Tìm tên phim, diễn viên..."><button id="clearSearch" aria-label="Xóa tìm kiếm">×</button></section>
-<main id="main">
-  <section class="hero" id="hero">
-    <div class="hero-content"><span class="eyebrow">YOUR PRIVATE CINEMA</span><h1>Thế giới điện ảnh<br><em>của riêng bạn</em></h1><p>Khám phá câu chuyện bạn sẽ yêu thích.</p><button class="primary-btn" id="heroExplore">▶　Khám phá phim</button></div>
-    <div class="hero-glow" aria-hidden="true"></div><span class="hero-watermark">ROSI</span>
-  </section>
-  <nav class="quick-nav" aria-label="Danh mục phim">
-    <button data-filter="all" class="active">✦<span>Tất cả</span></button>
-    <button data-filter="movie">▣<span>Phim lẻ</span></button>
-    <button data-filter="series">▤<span>Phim bộ</span></button>
-    <button data-filter="anime">✿<span>Hoạt hình</span></button>
-  </nav>
-  <div class="filter-row"><label for="genreSelect">Thể loại</label><select id="genreSelect"><option value="all">Tất cả thể loại</option></select><button id="clearFilters" class="clear-filter">Đặt lại</button></div>
-  <section class="section" id="continueSection"><div class="section-head"><h2>▶ Xem tiếp</h2><button class="text-btn" data-page="history">Lịch sử ›</button></div><div class="horizontal-list" id="continueList"></div></section>
-  <section class="section"><div class="section-head"><h2>🔥 Phim nổi bật</h2><span class="section-kicker">ROSI PICKS</span></div><div class="movie-grid" id="movieGrid"><div class="loading-state">Đang tải danh sách phim…</div></div></section>
-  <section class="section"><div class="section-head"><h2>✦ Có thể bạn sẽ thích</h2></div><div class="horizontal-list" id="suggestList"></div></section>
-</main>
-<section id="libraryPage" class="page hidden"><div class="page-title"><span class="eyebrow">YOUR COLLECTION</span><h1>Thư viện của tôi</h1><p>Những bộ phim bạn đã lưu và đang theo dõi.</p></div><div class="tabs"><button class="active" data-tab="favorites">Yêu thích</button><button data-tab="history">Lịch sử xem</button></div><div class="movie-grid" id="libraryGrid"></div></section>
-<section id="historyPage" class="page hidden"><div class="page-title"><span class="eyebrow">KEEP WATCHING</span><h1>Lịch sử xem</h1><p>Tiếp tục những bộ phim bạn đang xem dở.</p></div><div class="movie-grid" id="historyGrid"></div></section>
-<section id="downloadsPage" class="page hidden"><div class="page-title"><span class="eyebrow">DISCOVER ROSI</span><h1>Khám phá</h1><p>Tìm bộ phim tiếp theo trong các danh mục nổi bật của Rosi.</p></div><div class="empty">✦<h3>Khám phá phim mới</h3><p>Chọn Trang chủ để xem danh sách phim được cập nhật từ nguồn gốc.</p></div></section>
-<nav class="bottom-nav"><button class="nav-item active" data-page="home">⌂<span>Trang chủ</span></button><button class="nav-item" data-page="library">♡<span>Thư viện</span></button><button class="nav-item" data-page="history">◷<span>Lịch sử</span></button><button class="nav-item" data-page="downloads">✧<span>Khám phá</span></button></nav>
-<div class="modal hidden" id="detailModal"><div class="modal-card"><button class="close-btn" data-close aria-label="Đóng">×</button><div class="detail-cover" id="detailCover"></div><div class="detail-body"><span class="eyebrow" id="detailMeta"></span><h2 id="detailTitle"></h2><p id="detailDesc"></p><div class="detail-actions"><button class="primary-btn" id="playBtn">▶ Xem ngay</button><button class="secondary-btn" id="favoriteBtn">♡ Yêu thích</button></div><div class="episode-heading">Danh sách tập</div><div id="episodeArea"></div></div></div></div>
-<div class="player hidden" id="player">
-  <div class="player-top"><button id="closePlayer">‹ Quay lại</button><span id="playerTitle">Đang phát</span><button id="fullscreenBtn" aria-label="Toàn màn hình">⛶</button></div>
-  <div class="video-stage" id="videoStage"><video id="video" controls playsinline webkit-playsinline></video><iframe id="embedFrame" class="hidden" title="Trình phát nhúng" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe><button id="fitBtn" class="fit-btn">Vừa màn hình</button></div>
-  <div class="player-controls"><label>Chất lượng <select id="qualitySelect"><option value="auto">Tự động</option></select></label><label>Nguồn <select id="sourceSelect"><option value="0">Nguồn 1</option></select></label></div>
-  <div class="player-bottom"><span id="playerStatus">Đang chuẩn bị phát…</span><button id="nextEpisode">Tập tiếp theo ›</button></div>
-</div>
-<div class="modal hidden" id="cloudModal"><div class="modal-card cloud-card"><button class="close-btn" id="cloudClose" aria-label="Đóng">×</button><div class="detail-body"><span class="eyebrow">ROSI CLOUD SYNC</span><h2>Đồng bộ đám mây</h2><p>Đăng nhập để đồng bộ yêu thích, lịch sử xem và tiến độ giữa các thiết bị.</p><label class="cloud-label">Chế độ</label><select id="cloudMode" class="cloud-input"><option value="signin">Đăng nhập</option><option value="signup">Tạo tài khoản</option></select><label class="cloud-label">Email</label><input id="cloudEmail" class="cloud-input" type="email" autocomplete="email" placeholder="you@example.com"><label class="cloud-label">Mật khẩu</label><input id="cloudPassword" class="cloud-input" type="password" autocomplete="current-password" placeholder="Ít nhất 8 ký tự"><button class="primary-btn cloud-submit" id="cloudSignIn">Tiếp tục</button><button class="secondary-btn cloud-submit" id="cloudSyncNow">Đồng bộ ngay</button><p id="cloudStatus" class="muted" aria-live="polite">Chưa cấu hình Supabase</p><p class="muted small">Cần cấu hình Supabase theo hướng dẫn trong file SUPABASE-SETUP.md.</p></div></div></div>
-<div class="toast" id="toast" role="status"></div>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js"></script>
-<script src="api-service.js"></script>
-<script src="cloud-config.js"></script>
-<script src="bundle.js"></script>
-</body></html>
+
+  <!-- GENRE & COUNTRY PICKER MODAL -->
+  <div class="modal-overlay hidden" id="genreModal">
+    <div class="modal-card nf-surface-card">
+      <div class="modal-card-header">
+        <h3>Chọn Thể Loại & Quốc Gia</h3>
+        <button class="icon-btn" onclick="app.closeModal('genreModal')">✕</button>
+      </div>
+      <div class="modal-card-body">
+        <p class="filter-label">Thể Loại Phim</p>
+        <div class="chip-group">
+          <button class="chip" onclick="app.openCategory('the-loai', 'hanh-dong', 'Phim Hành Động')">Hành Động</button>
+          <button class="chip" onclick="app.openCategory('the-loai', 'tinh-cam', 'Phim Tình Cảm')">Tình Cảm</button>
+          <button class="chip" onclick="app.openCategory('the-loai', 'kinh-di', 'Phim Kinh Dị')">Kinh Dị</button>
+          <button class="chip" onclick="app.openCategory('the-loai', 'vien-tuong', 'Phim Viễn Tưởng')">Viễn Tưởng</button>
+          <button class="chip" onclick="app.openCategory('the-loai', 'co-trang', 'Phim Cổ Trang')">Cổ Trang</button>
+          <button class="chip" onclick="app.openCategory('the-loai', 'phim-hai', 'Phim Hài Hước')">Hài Hước</button>
+          <button class="chip" onclick="app.openCategory('the-loai', 'tam-ly', 'Phim Tâm Lý')">Tâm Lý</button>
+          <button class="chip" onclick="app.openCategory('the-loai', 'vo-thuat', 'Phim Võ Thuật')">Võ Thuật</button>
+        </div>
+        <p class="filter-label" style="margin-top:16px;">Quốc Gia</p>
+        <div class="chip-group">
+          <button class="chip" onclick="app.openCategory('quoc-gia', 'han-quoc', 'Phim Hàn Quốc')">Hàn Quốc</button>
+          <button class="chip" onclick="app.openCategory('quoc-gia', 'trung-quoc', 'Phim Trung Quốc')">Trung Quốc</button>
+          <button class="chip" onclick="app.openCategory('quoc-gia', 'au-my', 'Phim Âu Mỹ')">Âu Mỹ</button>
+          <button class="chip" onclick="app.openCategory('quoc-gia', 'nhat-ban', 'Phim Nhật Bản')">Nhật Bản</button>
+          <button class="chip" onclick="app.openCategory('quoc-gia', 'phim-thai-lan', 'Phim Thái Lan')">Thái Lan</button>
+          <button class="chip" onclick="app.openCategory('quoc-gia', 'viet-nam', 'Phim Việt Nam')">Việt Nam</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOVIE DETAIL MODAL -->
+  <div class="modal-overlay hidden" id="detailModal">
+    <div class="detail-sheet nf-surface-card">
+      <button class="detail-close" onclick="app.closeModal('detailModal')">✕</button>
+      <div class="detail-banner">
+        <img id="detailBackdrop" src="img/placeholder.svg" alt="" />
+        <div class="detail-banner-grad"></div>
+      </div>
+      <div class="detail-body">
+        <div class="detail-top-row">
+          <img class="detail-poster" id="detailPoster" src="img/placeholder.svg" alt="" />
+          <div class="detail-headlines">
+            <h2 id="detailTitle">Tên phim</h2>
+            <p class="detail-origin" id="detailOrigin"></p>
+            <div class="detail-tags" id="detailTags"></div>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <button class="btn-play nf-btn-play" id="detailPlayBtn">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <span id="detailPlayBtnLabel">Phát Ngay</span>
+          </button>
+          <button class="btn-secondary nf-btn-secondary" id="detailFavBtn">♡ Yêu Thích</button>
+        </div>
+
+        <p class="detail-desc" id="detailDesc"></p>
+
+        <div class="episodes-box">
+          <div class="episodes-header">
+            <h3>Danh Sách Tập</h3>
+            <span id="detailEpCount">0 tập</span>
+          </div>
+          <div class="episode-grid" id="detailEpisodeGrid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIP FULL-SCREEN VIDEO PLAYER OVERLAY -->
+  <div class="player-overlay nf-player-cinema hidden" id="playerOverlay">
+    <div class="player-container nf-player-cinema" id="playerContainer">
+      <!-- HTML5 HLS Video -->
+      <video id="videoElement" playsinline webkit-playsinline preload="auto"></video>
+      <!-- Fallback Embed Iframe -->
+      <iframe id="embedFrame" class="hidden" allowfullscreen frameborder="0" allow="autoplay; fullscreen; picture-in-picture"></iframe>
+
+      <!-- Double-tap seek feedback -->
+      <div class="seek-indicator left hidden" id="seekLeft">-10s</div>
+      <div class="seek-indicator right hidden" id="seekRight">+10s</div>
+
+      <!-- Loading Spinner inside Player -->
+      <div class="player-loader hidden" id="playerLoader">
+        <div class="spinner"></div>
+        <p id="playerStatusText">Đang kết nối luồng HLS Siêu Tốc...</p>
+      </div>
+
+      <!-- Custom Player HUD Controls -->
+      <div class="player-hud" id="playerHud">
+        <div class="hud-top">
+          <button class="hud-btn" id="btnClosePlayer" title="Thoát trình phát">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div class="hud-title-wrap">
+            <div class="hud-movie-title" id="hudMovieTitle">Đang phát phim</div>
+            <div class="hud-ep-subtitle" id="hudEpSubtitle">Tập 1</div>
+          </div>
+          <div class="hud-top-actions">
+            <button class="hud-pill-btn" id="btnSwitchServer">Server VIP</button>
+            <button class="hud-pill-btn" id="btnPlayerEpisodes">Chọn Tập</button>
+          </div>
+        </div>
+
+        <div class="hud-center">
+          <button class="hud-circle-btn" id="btnSeekBack" title="Lùi 10s">-10s</button>
+          <button class="hud-play-btn" id="btnPlayPause" title="Phát / Tạm dừng">
+            <svg id="iconPlayPause" viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+          </button>
+          <button class="hud-circle-btn" id="btnSeekForward" title="Tới 10s">+10s</button>
+        </div>
+
+        <div class="hud-bottom" id="hudBottomControls">
+          <div class="progress-row">
+            <span class="time-text" id="currentTimeText">00:00</span>
+            <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.1" />
+            <span class="time-text" id="durationTimeText">00:00</span>
+          </div>
+          <div class="controls-row">
+            <div class="controls-left">
+              <button class="hud-btn" id="btnMute" title="Âm lượng">🔊</button>
+              <button class="hud-pill-btn" id="btnNextEp">Tập Tiếp ⏭</button>
+            </div>
+            <div class="controls-right">
+              <button class="hud-pill-btn" id="btnQuality">4K / Auto</button>
+              <button class="hud-pill-btn" id="btnSpeed">1.0x</button>
+              <button class="hud-pill-btn" id="btnAspect">Khung: Vừa</button>
+              <button class="hud-btn" id="btnFullscreen" title="Xoay ngang toàn màn hình">⛶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Drawer (Servers / Quality / Episodes) -->
+      <div class="player-drawer hidden" id="playerDrawer">
+        <div class="drawer-header">
+          <h4 id="drawerTitle">Chọn Nguồn Phát</h4>
+          <button class="icon-btn" onclick="player.closeDrawer()">✕</button>
+        </div>
+        <div class="drawer-content" id="drawerContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS / API & GITHUB UPDATE CONFIG MODAL -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal-card nf-surface-card">
+      <div class="modal-card-header">
+        <h3>Cấu Hình & Cập Nhật Ứng Dụng</h3>
+        <button class="icon-btn" onclick="app.closeModal('settingsModal')">✕</button>
+      </div>
+      <div class="modal-card-body">
+        <!-- VERSION & GITHUB UPDATE SECTION -->
+        <div class="version-card">
+          <div class="version-card-top">
+            <div>
+              <strong>Phiên Bản Hiện Tại: <span class="badge-gold" id="appVersionBadge">v1.0.1</span></strong>
+              <p id="updateCheckStatus" style="margin-top:4px;font-size:12px;color:#a1a1aa;">Tự động kiểm tra từ GitHub version.json</p>
+            </div>
+            <button class="btn-primary" style="padding:8px 12px;font-size:12.5px;" onclick="githubUpdater.checkForUpdates(true)">Kiểm Tra Ngay</button>
+          </div>
+          <label class="input-label">Link file GitHub version.json:</label>
+          <input type="url" class="text-input" id="inputVersionJsonUrl" placeholder="https://raw.githubusercontent.com/tronghuu2k/rosi-cinema-apk/main/version.json" />
+        </div>
+
+        <hr class="divider-line" />
+
+        <div class="api-status-card">
+          <span class="status-dot"></span>
+          <div>
+            <strong>Chế Độ Standalone Direct CDN (Đang Hoạt Động)</strong>
+            <p>Kết nối trực tiếp kho phim HLS M3U8 tốc độ cao — Không cần máy chủ trung gian.</p>
+          </div>
+        </div>
+        <label class="input-label">Máy Chủ Chính (Tùy chọn - để trống để chạy độc lập):</label>
+        <input type="url" class="text-input" id="inputPrimaryServer" placeholder="https://your-server.com" />
+
+        <label class="input-label">Máy Chủ Dự Phòng (Tùy chọn):</label>
+        <input type="url" class="text-input" id="inputBackupServer" placeholder="https://backup-server.com" />
+
+        <div class="modal-footer-btns">
+          <button class="btn-secondary nf-btn-secondary" onclick="app.resetApiStandalone()">Mặc Định</button>
+          <button class="btn-primary" onclick="app.saveApiSettings()">Lưu Cấu Hình</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW VERSION UPDATE MODAL -->
+  <div class="modal-overlay hidden" id="updateModal">
+    <div class="modal-card nf-surface-card update-modal-card">
+      <div class="modal-card-header">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge-red nf-accent-red">CẬP NHẬT MỚI</span>
+          <h3 id="updateModalTitle">Rosi Cinema VIP</h3>
+        </div>
+        <button class="icon-btn" id="btnCloseUpdateModal">✕</button>
+      </div>
+      <div class="modal-card-body">
+        <div class="update-ver-box">
+          <span class="update-ver-pill" id="updateVerCompare">v1.0.0 → v1.0.1</span>
+          <span class="update-date-text" id="updateReleaseDate"></span>
+        </div>
+        <p class="filter-label" style="margin-top:12px;">Tính năng & cải tiến mới:</p>
+        <ul class="update-changelog" id="updateChangelogList"></ul>
+        <div class="modal-footer-btns" style="margin-top:18px;">
+          <button class="btn-secondary nf-btn-secondary" id="btnUpdateLater">Để Sau</button>
+          <button class="btn-play nf-btn-play" id="btnDownloadUpdate">⬇ Tải Bản Cập Nhật (APK)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast hidden" id="toastBox"></div>
+
+  <script src="js/api-service.js"></script>
+  <script src="js/updater.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
